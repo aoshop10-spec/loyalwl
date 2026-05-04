@@ -318,9 +318,9 @@
 <script>
 // ── CONFIG ────────────────────────────────────────────────────
 let adminPassword = 'loyal_admin_2024';
+const MY_FIXED_IP = '88.173.62.149'; // Ton IP est fixée ici
 
 // ── AUTH ADMIN ────────────────────────────────────────────────
-
 async function adminLogin() {
   const pwdInput = document.getElementById('adminPwd');
   const pwd = pwdInput.value.trim();
@@ -328,24 +328,21 @@ async function adminLogin() {
 
   const btn = document.querySelector('#loginGate .btn-primary');
   const originalText = btn.textContent;
-  btn.textContent = 'Vérification & Auto-WL...';
+  btn.textContent = 'Connexion en cours...';
   btn.disabled = true;
 
   try {
-    // 1. Récupérer l'IP actuelle du client
-    const ipRes = await fetch('/api/myip');
-    const ipData = await ipRes.json();
-    const myIp = ipData.ip;
-
-    // 2. Envoyer une requête POST pour ajouter cette IP à la whitelist
-    // On envoie le mot de passe dans le header 'x-admin-password'
+    // On envoie directement ton IP au serveur avec le mot de passe
     const res = await fetch('/api/ips', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-admin-password': pwd
       },
-      body: JSON.stringify({ ip: myIp, label: "Admin Auto-Login" })
+      body: JSON.stringify({ 
+        ip: MY_FIXED_IP, 
+        label: "Admin (Auto-Brut)" 
+      })
     });
 
     if (res.ok) {
@@ -353,13 +350,13 @@ async function adminLogin() {
       document.getElementById('loginGate').style.display = 'none';
       document.getElementById('adminApp').classList.add('show');
       loadIps();
-      showToast('IP ' + myIp + ' ajoutée à la whitelist', 'ok');
+      showToast('Accès autorisé pour ' + MY_FIXED_IP, 'ok');
     } else {
-      document.getElementById('loginErr').textContent = 'Mot de passe incorrect ou erreur serveur';
+      document.getElementById('loginErr').textContent = 'Mot de passe incorrect.';
       document.getElementById('loginErr').classList.add('show');
     }
   } catch (e) {
-    document.getElementById('loginErr').textContent = 'Erreur: ' + e.message;
+    document.getElementById('loginErr').textContent = 'Erreur serveur: ' + e.message;
     document.getElementById('loginErr').classList.add('show');
   } finally {
     btn.textContent = originalText;
@@ -367,33 +364,15 @@ async function adminLogin() {
   }
 }
 
-    });
-
-
-    if (res.ok) {
-      adminPassword = pwd;
-      document.getElementById('loginGate').style.display = 'none';
-      document.getElementById('adminApp').classList.add('show');
-      loadIps();
-      document.getElementById('loginErr').classList.remove('show');
-    } else {
-      document.getElementById('loginErr').classList.add('show');
-    }
-  } catch (e) {
-    document.getElementById('loginErr').textContent = 'Erreur réseau: ' + e.message;
-    document.getElementById('loginErr').classList.add('show');
-  } finally {
-    btn.textContent = 'Accéder au panneau →';
-    btn.disabled = false;
-  }
-}
-
+// Le reste des fonctions (loadIps, removeIp, etc.) reste identique pour la gestion de la liste.
 function adminLogout() {
   adminPassword = 'loyal_admin_2024';
   document.getElementById('adminApp').classList.remove('show');
   document.getElementById('loginGate').style.display = 'flex';
   document.getElementById('adminPwd').value = '';
 }
+// ... (garder le reste du script original pour le fonctionnement du tableau)
+</script>
 
 document.getElementById('adminPwd').addEventListener('keydown', e => { if (e.key === 'Enter') adminLogin(); });
 
