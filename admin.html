@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Loyal — Admin Sessions</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%231f6feb'/><rect x='6' y='4' width='14' height='18' rx='2' fill='white'/><circle cx='7.5' cy='9' r='1.5' fill='%231f6feb'/><circle cx='7.5' cy='14' r='1.5' fill='%231f6feb'/><circle cx='7.5' cy='19' r='1.5' fill='%231f6feb'/><rect x='11' y='8' width='7' height='1.5' rx='0.75' fill='%23c0ccd8'/><rect x='11' y='12' width='6' height='1.5' rx='0.75' fill='%23c0ccd8'/><rect x='11' y='16' width='7' height='1.5' rx='0.75' fill='%23c0ccd8'/><circle cx='20' cy='22' r='4.5' fill='white' opacity='0.2' stroke='white' stroke-width='1.5'/><circle cx='20' cy='22' r='3' fill='%230d2a5e'/><line x1='23.5' y1='25.5' x2='27' y2='29' stroke='white' stroke-width='1.8' stroke-linecap='round'/></svg>"/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d1117; --bg2: #161b22; --bg3: #1c2128;
+      --border: #30363d; --border2: #21262d;
+      --accent: #1f6feb; --accent-h: #388bfd;
+      --text: #e6edf3; --text-2: #8b949e; --text-3: #484f58;
+      --green: #3fb950; --red: #f85149; --orange: #d29922; --purple: #bc8cff;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { height:100%; }
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: var(--bg); color: var(--text);
+      font-size: 13px; line-height: 1.5;
+      display: flex; flex-direction: column;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 20px;
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .topbar-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 700; font-size: 14px;
+    }
+    .logo-badge {
+      background: var(--red); color: white;
+      font-size: 10px; font-weight: 700; padding: 2px 7px;
+      border-radius: 4px; letter-spacing: 0.5px;
+    }
+    .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 6px;
+      font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; font-weight: 500;
+      cursor: pointer; border: 1px solid transparent; transition: all 0.15s;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-h); }
+    .btn-ghost { background: transparent; color: var(--text-2); border-color: var(--border); }
+    .btn-ghost:hover { background: var(--bg3); color: var(--text); }
+    .btn-danger { background: rgba(248,81,73,0.1); color: var(--red); border-color: rgba(248,81,73,0.3); }
+    .btn-danger:hover { background: rgba(248,81,73,0.2); }
+    .btn-sm { padding: 4px 10px; font-size: 11px; }
+
+    /* ── LOGIN GATE ── */
+    #loginGate {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      padding: 2rem;
+    }
+    .login-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 32px; max-width: 380px; width: 100%;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    }
+    .login-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .login-sub { font-size: 12px; color: var(--text-2); margin-bottom: 24px; }
+
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-size: 11px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+    .form-input {
+      width: 100%; background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 7px; color: var(--text);
+      font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+      padding: 9px 12px; outline: none; transition: border-color 0.15s;
+    }
+    .form-input:focus { border-color: var(--accent); }
+    .form-input::placeholder { color: var(--text-3); }
+    .btn-full { width: 100%; justify-content: center; padding: 10px; font-size: 13px; }
+
+    .err-msg { color: var(--red); font-size: 12px; margin-top: 10px; display: none; }
+    .err-msg.show { display: block; }
+
+    /* ── MAIN APP ── */
+    #adminApp { flex: 1; display: none; flex-direction: column; overflow: hidden; }
+    #adminApp.show { display: flex; }
+
+    .layout { flex: 1; display: flex; overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px; min-width: 220px;
+      background: var(--bg2); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; padding: 16px 0; overflow-y: auto;
+    }
+    .sidebar-section { padding: 0 10px; margin-bottom: 20px; }
+    .sidebar-title {
+      font-size: 10px; font-weight: 600; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: 0.8px;
+      padding: 4px 6px 8px;
+    }
+    .nav-btn {
+      display: flex; align-items: center; gap: 9px;
+      padding: 7px 10px; border-radius: 6px;
+      color: var(--text-2); font-size: 13px;
+      cursor: pointer; transition: all 0.1s;
+      background: none; border: none; width: 100%; text-align: left;
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+    .nav-btn:hover { background: var(--bg3); color: var(--text); }
+    .nav-btn.active { background: rgba(31,111,235,0.12); color: var(--accent-h); }
+
+    .stat-card {
+      margin: 0 10px 8px;
+      background: var(--bg3); border: 1px solid var(--border2);
+      border-radius: 8px; padding: 12px;
+    }
+    .stat-val { font-size: 24px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; color: var(--text); }
+    .stat-label { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+
+    /* Main content */
+    .content { flex: 1; overflow-y: auto; padding: 20px; }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px; flex-wrap: wrap; gap: 10px;
+    }
+    .section-title-text { font-size: 15px; font-weight: 700; }
+    .section-actions { display: flex; gap: 8px; }
+
+    /* Tableau sessions */
+    .sessions-table { width: 100%; border-collapse: collapse; }
+    .sessions-table th {
+      text-align: left; padding: 8px 12px;
+      font-size: 11px; font-weight: 600; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border2);
+      background: var(--bg3);
+    }
+    .sessions-table td {
+      padding: 10px 12px; border-bottom: 1px solid var(--border2);
+      font-size: 12px; vertical-align: middle;
+    }
+    .sessions-table tr:hover td { background: rgba(31,111,235,0.04); }
+    .sessions-table tr:last-child td { border-bottom: none; }
+
+    .token-cell {
+      font-family: 'IBM Plex Mono', monospace;
+      color: var(--text-2); font-size: 11px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .token-short { color: var(--accent-h); }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10px; font-weight: 600; padding: 2px 8px;
+      border-radius: 4px; text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .badge-green { background: rgba(63,185,80,0.12); color: var(--green); border: 1px solid rgba(63,185,80,0.2); }
+    .badge-red   { background: rgba(248,81,73,0.12); color: var(--red); border: 1px solid rgba(248,81,73,0.2); }
+    .badge-orange { background: rgba(210,153,34,0.12); color: var(--orange); border: 1px solid rgba(210,153,34,0.2); }
+
+    .countdown { font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+
+    .row-actions { display: flex; gap: 4px; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center;
+      padding: 1rem; opacity: 0; pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 12px; width: 100%; max-width: 480px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+      transform: translateY(20px); transition: transform 0.2s;
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    .modal-header { padding: 20px 22px 14px; border-bottom: 1px solid var(--border2); font-size: 14px; font-weight: 700; }
+    .modal-body { padding: 18px 22px; }
+    .modal-footer { padding: 14px 22px; border-top: 1px solid var(--border2); display: flex; justify-content: flex-end; gap: 8px; }
+
+    /* Lien de session généré */
+    .link-box {
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 14px;
+      font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+      color: var(--accent-h); word-break: break-all; line-height: 1.6;
+      margin-top: 12px;
+    }
+    .link-box.hidden { display: none; }
+
+    .copy-hint { font-size: 11px; color: var(--text-3); margin-top: 6px; }
+
+    /* IP Whitelist */
+    .ip-row {
+      display: flex; align-items: center; padding: 10px 12px;
+      border-bottom: 1px solid var(--border2);
+      gap: 12px;
+    }
+    .ip-row:last-child { border-bottom: none; }
+    .ip-addr { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent-h); flex: 1; }
+    .ip-label { font-size: 12px; color: var(--text-2); }
+    .ip-date { font-size: 11px; color: var(--text-3); font-family: 'IBM Plex Mono', monospace; }
+
+    .table-wrap {
+      background: var(--bg2); border: 1px solid var(--border2);
+      border-radius: 8px; overflow: hidden;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 16px; font-size: 12px;
+      display: flex; align-items: center; gap: 8px;
+      z-index: 999; transform: translateY(80px); opacity: 0;
+      transition: all 0.25s cubic-bezier(.34,1.56,.64,1);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.ok { border-color: rgba(63,185,80,0.4); }
+    .toast.err { border-color: rgba(248,81,73,0.4); }
+
+    .empty-state { text-align: center; padding: 3rem; color: var(--text-3); }
+    .empty-state .icon { font-size: 2rem; margin-bottom: 8px; }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- ── TOPBAR ── -->
+<div class="topbar">
+  <div class="topbar-logo">
+    <div style="width:28px; height:28px; background:#1f6feb; border-radius:7px; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden;">
+      <svg width="20" height="20" viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
+        <rect x="18" y="10" width="46" height="58" rx="5" fill="white"/>
+        <circle cx="21" cy="24" r="4" fill="#1f6feb" stroke="white" stroke-width="1.2"/>
+        <circle cx="21" cy="39" r="4" fill="#1f6feb" stroke="white" stroke-width="1.2"/>
+        <circle cx="21" cy="54" r="4" fill="#1f6feb" stroke="white" stroke-width="1.2"/>
+        <rect x="30" y="22" width="26" height="3" rx="1.5" fill="#c0ccd8"/>
+        <rect x="30" y="30" width="22" height="3" rx="1.5" fill="#c0ccd8"/>
+        <rect x="30" y="38" width="26" height="3" rx="1.5" fill="#c0ccd8"/>
+        <rect x="30" y="46" width="18" height="3" rx="1.5" fill="#c0ccd8"/>
+        <rect x="30" y="54" width="23" height="3" rx="1.5" fill="#c0ccd8"/>
+        <circle cx="56" cy="62" r="14" fill="white" opacity="0.18" stroke="white" stroke-width="3.5"/>
+        <circle cx="56" cy="62" r="10.5" fill="#1a3a6b" opacity="0.9"/>
+        <circle cx="51" cy="57" r="3" fill="white" opacity="0.3"/>
+        <line x1="67" y1="72" x2="76" y2="81" stroke="white" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <span class="logo-badge">ADMIN</span>
+    <span style="color:var(--text-2); font-weight:400;">Gestion des sessions</span>
+  </div>
+  <div class="topbar-right">
+    <span id="clockTop" style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--text-3);"></span>
+    <button class="btn btn-ghost btn-sm" onclick="location.href='index.html'">← App</button>
+    <button class="btn btn-ghost btn-sm" onclick="adminLogout()">⏻ Déconnexion</button>
+  </div>
+</div>
+
+<!-- ── LOGIN GATE ── -->
+<div id="loginGate">
+  <div class="login-card">
+    <div class="login-title">🔐 Accès Administrateur</div>
+    <div class="login-sub">Ce panneau est réservé aux administrateurs Loyal.</div>
+    <div class="form-group">
+      <label class="form-label">Mot de passe admin</label>
+      <input class="form-input" type="password" id="adminPwd" placeholder="••••••••" autocomplete="off"/>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="adminLogin()">Accéder au panneau →</button>
+    <div class="err-msg" id="loginErr">Mot de passe incorrect.</div>
+  </div>
+</div>
+
+<!-- ── PANNEAU ADMIN ── -->
+<div id="adminApp">
+  <div class="layout">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-title">Navigation</div>
+        <button class="nav-btn active" onclick="showTab('sessions',this)">🔑 Sessions actives</button>
+        <button class="nav-btn" onclick="showTab('ips',this)">🌐 Whitelist IP</button>
+        <button class="nav-btn" onclick="showTab('create',this)">➕ Créer une session</button>
+        <button class="nav-btn" onclick="showTab('logs',this)">📋 Historique</button>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">Stats</div>
+        <div class="stat-card">
+          <div class="stat-val" id="statActive">—</div>
+          <div class="stat-label">Sessions actives</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="statTotal">—</div>
+          <div class="stat-label">Total créées</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="statIPs">—</div>
+          <div class="stat-label">IPs whitelistées</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contenu -->
+    <div class="content">
+
+      <!-- Tab: Sessions -->
+      <div class="section active" id="tab-sessions">
+        <div class="section-header">
+          <div class="section-title-text">🔑 Sessions actives</div>
+          <div class="section-actions">
+            <button class="btn btn-ghost btn-sm" onclick="refreshAll()">↻ Rafraîchir</button>
+            <button class="btn btn-danger btn-sm" onclick="revokeAll()">⊘ Révoquer tout</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="sessions-table" id="sessionsTable">
+            <thead>
+              <tr>
+                <th>Label</th>
+                <th>Token</th>
+                <th>IP</th>
+                <th>Expire dans</th>
+                <th>Dernière activité</th>
+                <th>État</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="sessionsTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab: IPs -->
+      <div class="section" id="tab-ips">
+        <div class="section-header">
+          <div class="section-title-text">🌐 Whitelist IP</div>
+          <div class="section-actions">
+            <button class="btn btn-primary btn-sm" onclick="openModal('modalAddIp')">+ Ajouter une IP</button>
+          </div>
+        </div>
+        <div class="table-wrap" id="ipListWrap">
+          <div class="empty-state"><div class="icon">🌐</div><p>Aucune IP whitelistée</p></div>
+        </div>
+      </div>
+
+      <!-- Tab: Créer -->
+      <div class="section" id="tab-create">
+        <div class="section-header">
+          <div class="section-title-text">➕ Créer une session</div>
+        </div>
+        <div style="max-width:480px;">
+          <div class="table-wrap" style="padding:20px;">
+            <div class="form-group">
+              <label class="form-label">Label (nom de l'utilisateur)</label>
+              <input class="form-input" type="text" id="newLabel" placeholder="Ex: Sophie MARTIN"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">IP autorisée (optionnel)</label>
+              <input class="form-input" type="text" id="newIp" placeholder="Ex: 192.168.1.1"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Durée</label>
+              <select class="form-input" id="newDuration">
+                <option value="1800000">30 minutes (défaut)</option>
+                <option value="3600000">1 heure</option>
+                <option value="7200000">2 heures</option>
+                <option value="86400000">24 heures</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="createSession()" style="width:100%; justify-content:center; padding:10px;">
+              Générer la session →
+            </button>
+
+            <div class="link-box hidden" id="generatedLink"></div>
+            <div class="copy-hint hidden" id="copyHint">
+              👆 Copie ce lien et envoie-le à l'utilisateur. Il expire automatiquement.
+              <br><button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="copyGenerated()">📋 Copier le lien</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Historique (all sessions incl. expired) -->
+      <div class="section" id="tab-logs">
+        <div class="section-header">
+          <div class="section-title-text">📋 Historique complet</div>
+          <div class="section-actions">
+            <button class="btn btn-ghost btn-sm" onclick="renderLogs()">↻ Rafraîchir</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="sessions-table">
+            <thead>
+              <tr><th>Label</th><th>Token</th><th>Créée</th><th>Expiration</th><th>État</th></tr>
+            </thead>
+            <tbody id="logsTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /layout -->
+</div><!-- /adminApp -->
+
+<!-- Modales -->
+<!-- Modifier session -->
+<div class="modal-overlay" id="modalEditSession">
+  <div class="modal">
+    <div class="modal-header">✏️ Modifier la session</div>
+    <div class="modal-body">
+      <input type="hidden" id="editToken"/>
+      <div class="form-group">
+        <label class="form-label">Label</label>
+        <input class="form-input" type="text" id="editLabel"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">IP autorisée</label>
+        <input class="form-input" type="text" id="editIp" placeholder="Laisser vide = aucune restriction"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modalEditSession')">Annuler</button>
+      <button class="btn btn-primary btn-sm" onclick="saveEdit()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ajouter IP -->
+<div class="modal-overlay" id="modalAddIp">
+  <div class="modal">
+    <div class="modal-header">🌐 Ajouter une IP à la whitelist</div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Adresse IP</label>
+        <input class="form-input" type="text" id="newIpAddr" placeholder="192.168.1.1"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Label (optionnel)</label>
+        <input class="form-input" type="text" id="newIpLabel" placeholder="Ex: Bureau Paris"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modalAddIp')">Annuler</button>
+      <button class="btn btn-primary btn-sm" onclick="addIp()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lien de partage -->
+<div class="modal-overlay" id="modalLink">
+  <div class="modal">
+    <div class="modal-header">🔗 Lien de session généré</div>
+    <div class="modal-body">
+      <p style="font-size:12px; color:var(--text-2); margin-bottom:12px;">Envoie ce lien à l'utilisateur. Il expire dans 30 min.</p>
+      <div class="link-box" id="modalLinkContent"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modalLink')">Fermer</button>
+      <button class="btn btn-primary btn-sm" onclick="copyModalLink()">📋 Copier</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="auth.js"></script>
+<script>
+const SM = Auth.SessionManager;
+const IM = Auth.IpManager;
+
+// ── AUTH ADMIN ──
+const ADMIN_PWD = Auth.AUTH_CONFIG.adminPassword;
+let adminAuthed = false;
+
+function adminLogin() {
+  const pwd = document.getElementById('adminPwd').value;
+  if (pwd === ADMIN_PWD) {
+    adminAuthed = true;
+    document.getElementById('loginGate').style.display = 'none';
+    document.getElementById('adminApp').classList.add('show');
+    refreshAll();
+    startRefreshLoop();
+  } else {
+    document.getElementById('loginErr').classList.add('show');
+  }
+}
+
+function adminLogout() {
+  adminAuthed = false;
+  document.getElementById('adminApp').classList.remove('show');
+  document.getElementById('loginGate').style.display = 'flex';
+  document.getElementById('adminPwd').value = '';
+}
+
+document.getElementById('adminPwd').addEventListener('keydown', e => { if (e.key === 'Enter') adminLogin(); });
+
+// ── TABS ──
+function showTab(name, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'sessions') renderSessions();
+  if (name === 'ips') renderIps();
+  if (name === 'logs') renderLogs();
+}
+
+// ── RENDER SESSIONS ──
+function renderSessions() {
+  const sessions = SM.list().filter(s => !s.expired);
+  const tbody = document.getElementById('sessionsTbody');
+  updateStats();
+
+  if (!sessions.length) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="icon">🔑</div><p>Aucune session active</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = sessions.map(s => `
+    <tr>
+      <td style="font-weight:600;">${escHtml(s.label)}</td>
+      <td>
+        <div class="token-cell">
+          <span class="token-short">${s.token.slice(0,8)}…</span>
+          <button class="btn btn-ghost btn-sm" onclick="copyText('${s.token}')" title="Copier">📋</button>
+          <button class="btn btn-ghost btn-sm" onclick="showLink('${s.token}')" title="Lien">🔗</button>
+        </div>
+      </td>
+      <td style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--accent-h);">${escHtml(s.ip || '—')}</td>
+      <td><span class="countdown" id="cd-${s.token}">${s.remaining}</span></td>
+      <td style="font-size:11px; color:var(--text-3); font-family:'IBM Plex Mono',monospace;">${s.lastSeenFmt}</td>
+      <td><span class="badge badge-green">● Actif</span></td>
+      <td>
+        <div class="row-actions">
+          <button class="btn btn-ghost btn-sm" onclick="extendSession('${s.token}')">+30m</button>
+          <button class="btn btn-ghost btn-sm" onclick="openEdit('${s.token}','${escHtml(s.label)}','${escHtml(s.ip||'')}')">✏️</button>
+          <button class="btn btn-danger btn-sm" onclick="revokeOne('${s.token}')">⊘</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function renderLogs() {
+  const all = SM.list();
+  const tbody = document.getElementById('logsTbody');
+  if (!all.length) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><p>Aucune session enregistrée</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = [...all].reverse().map(s => `
+    <tr>
+      <td style="font-weight:600;">${escHtml(s.label)}</td>
+      <td style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--text-2);">${s.token.slice(0,12)}…</td>
+      <td style="font-size:11px; color:var(--text-3);">${s.createdFmt}</td>
+      <td style="font-size:11px; color:var(--text-3);">${Auth.fmtDate(s.expiresAt)}</td>
+      <td><span class="badge ${s.expired ? 'badge-red' : 'badge-green'}">${s.expired ? '✗ Expirée' : '✓ Active'}</span></td>
+    </tr>
+  `).join('');
+}
+
+function renderIps() {
+  const list = IM.list();
+  const wrap = document.getElementById('ipListWrap');
+  if (!list.length) {
+    wrap.innerHTML = `<div class="empty-state"><div class="icon">🌐</div><p>Aucune IP whitelistée</p></div>`;
+    return;
+  }
+  wrap.innerHTML = list.map(e => `
+    <div class="ip-row">
+      <span class="ip-addr">${escHtml(e.ip)}</span>
+      <span class="ip-label">${escHtml(e.label || '—')}</span>
+      <span class="ip-date">${Auth.fmtDate(e.addedAt)}</span>
+      <button class="btn btn-danger btn-sm" onclick="removeIp('${escHtml(e.ip)}')">⊘</button>
+    </div>
+  `).join('');
+}
+
+function updateStats() {
+  const all = SM.list();
+  document.getElementById('statActive').textContent = all.filter(s => !s.expired).length;
+  document.getElementById('statTotal').textContent  = all.length;
+  document.getElementById('statIPs').textContent    = IM.list().length;
+}
+
+// ── ACTIONS ──
+function createSession() {
+  const label    = document.getElementById('newLabel').value.trim() || 'Invité';
+  const ip       = document.getElementById('newIp').value.trim();
+  const duration = parseInt(document.getElementById('newDuration').value);
+  Auth.AUTH_CONFIG.sessionDuration = duration;
+
+  const session = SM.create(label, ip);
+  const link = `${location.origin}${location.pathname.replace('admin.html','index.html')}?token=${session.token}`;
+
+  const linkBox  = document.getElementById('generatedLink');
+  const hint     = document.getElementById('copyHint');
+  linkBox.textContent = link;
+  linkBox.classList.remove('hidden');
+  hint.classList.remove('hidden');
+
+  showToast('Session créée ✓ — lien prêt', 'ok');
+  updateStats();
+}
+
+function copyGenerated() {
+  const text = document.getElementById('generatedLink').textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('Lien copié ✓', 'ok'));
+}
+
+function extendSession(token) {
+  SM.extend(token);
+  renderSessions();
+  showToast('Session prolongée de 30 min', 'ok');
+}
+
+function revokeOne(token) {
+  if (!confirm('Révoquer cette session ?')) return;
+  SM.revoke(token);
+  renderSessions();
+  showToast('Session révoquée', 'ok');
+}
+
+function revokeAll() {
+  if (!confirm('Révoquer TOUTES les sessions actives ?')) return;
+  SM.revokeAll();
+  renderSessions();
+  showToast('Toutes les sessions révoquées', 'ok');
+}
+
+function showLink(token) {
+  const link = `${location.origin}${location.pathname.replace('admin.html','index.html')}?token=${token}`;
+  document.getElementById('modalLinkContent').textContent = link;
+  openModal('modalLink');
+}
+
+function copyModalLink() {
+  const text = document.getElementById('modalLinkContent').textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('Lien copié ✓', 'ok'));
+}
+
+// ── ÉDITION ──
+function openEdit(token, label, ip) {
+  document.getElementById('editToken').value = token;
+  document.getElementById('editLabel').value = label;
+  document.getElementById('editIp').value = ip;
+  openModal('modalEditSession');
+}
+
+function saveEdit() {
+  const token = document.getElementById('editToken').value;
+  const label = document.getElementById('editLabel').value.trim();
+  const ip    = document.getElementById('editIp').value.trim();
+  SM.update(token, { label, ip });
+  closeModal('modalEditSession');
+  renderSessions();
+  showToast('Session mise à jour', 'ok');
+}
+
+// ── IP ──
+function addIp() {
+  const ip    = document.getElementById('newIpAddr').value.trim();
+  const label = document.getElementById('newIpLabel').value.trim();
+  if (!ip) { showToast('IP manquante', 'err'); return; }
+  const ok = IM.add(ip, label);
+  if (!ok) { showToast('IP déjà présente', 'err'); return; }
+  closeModal('modalAddIp');
+  renderIps();
+  updateStats();
+  showToast(`IP ${ip} ajoutée`, 'ok');
+  document.getElementById('newIpAddr').value = '';
+  document.getElementById('newIpLabel').value = '';
+}
+
+function removeIp(ip) {
+  IM.remove(ip);
+  renderIps();
+  updateStats();
+  showToast(`IP ${ip} retirée`, 'ok');
+}
+
+// ── MODALES ──
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+// ── HELPERS ──
+function refreshAll() { renderSessions(); renderIps(); updateStats(); }
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function copyText(t) { navigator.clipboard.writeText(t).then(() => showToast('Copié ✓', 'ok')); }
+
+let _toastT;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `toast ${type} show`;
+  clearTimeout(_toastT);
+  _toastT = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// Horloge
+setInterval(() => {
+  const now = new Date();
+  const el = document.getElementById('clockTop');
+  if (el) el.textContent = [now.getHours(),now.getMinutes(),now.getSeconds()].map(n=>n.toString().padStart(2,'0')).join(':');
+}, 1000);
+
+// Rafraîchissement auto des countdowns
+function startRefreshLoop() {
+  setInterval(() => {
+    const sessions = SM.list().filter(s => !s.expired);
+    sessions.forEach(s => {
+      const el = document.getElementById('cd-' + s.token);
+      if (el) el.textContent = s.remaining;
+    });
+    updateStats();
+    // Si la section sessions est active, re-render si des sessions ont expiré
+    const activeSection = document.querySelector('.section.active');
+    if (activeSection && activeSection.id === 'tab-sessions') {
+      const expired = SM.list().filter(s => s.expired);
+      if (expired.length) renderSessions();
+    }
+  }, 1000);
+}
+</script>
+</body>
+</html>

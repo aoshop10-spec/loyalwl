@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Loyal</title>
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    .theme-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--bg3);
+      color: var(--text-2); font-size: 12px; font-weight: 500;
+      cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+    .theme-pill:hover { border-color: var(--accent); color: var(--text); }
+    .theme-pill.active { border-color: var(--accent); color: var(--text); background: var(--bg2); }
+  </style>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%231f6feb'/><rect x='6' y='4' width='14' height='18' rx='2' fill='white'/><circle cx='7.5' cy='9' r='1.5' fill='%231f6feb'/><circle cx='7.5' cy='14' r='1.5' fill='%231f6feb'/><circle cx='7.5' cy='19' r='1.5' fill='%231f6feb'/><rect x='11' y='8' width='7' height='1.5' rx='0.75' fill='%23c0ccd8'/><rect x='11' y='12' width='6' height='1.5' rx='0.75' fill='%23c0ccd8'/><rect x='11' y='16' width='7' height='1.5' rx='0.75' fill='%23c0ccd8'/><circle cx='20' cy='22' r='4.5' fill='white' opacity='0.2' stroke='white' stroke-width='1.5'/><circle cx='20' cy='22' r='3' fill='%230d2a5e'/><line x1='23.5' y1='25.5' x2='27' y2='29' stroke='white' stroke-width='1.8' stroke-linecap='round'/></svg>"/>
+</head>
+<body>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-avatar" style="background:#1f6feb; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+      <svg width="22" height="22" viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
+        <rect x="18" y="10" width="46" height="58" rx="5" fill="white"/>
+        <circle cx="21" cy="24" r="4" fill="#1f6feb" stroke="white" stroke-width="1.2"/>
+        <circle cx="21" cy="39" r="4" fill="#1f6feb" stroke="white" stroke-width="1.2"/>
+        <circle cx="21" cy="54" r="4" fill="#1f6feb" stroke="white" stroke-width="1.2"/>
+        <rect x="30" y="22" width="26" height="3" rx="1.5" fill="#c0ccd8"/>
+        <rect x="30" y="30" width="22" height="3" rx="1.5" fill="#c0ccd8"/>
+        <rect x="30" y="38" width="26" height="3" rx="1.5" fill="#c0ccd8"/>
+        <rect x="30" y="46" width="18" height="3" rx="1.5" fill="#c0ccd8"/>
+        <rect x="30" y="54" width="23" height="3" rx="1.5" fill="#c0ccd8"/>
+        <circle cx="56" cy="62" r="14" fill="white" opacity="0.18" stroke="white" stroke-width="3.5"/>
+        <circle cx="56" cy="62" r="10.5" fill="#1a3a6b" opacity="0.9"/>
+        <circle cx="51" cy="57" r="3" fill="white" opacity="0.3"/>
+        <line x1="67" y1="72" x2="76" y2="81" stroke="white" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <span class="logo-label">Loyal</span>
+    <button class="sidebar-toggle" onclick="toggleSidebar()" title="Réduire">‹</button>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Navigation</div>
+    <a class="nav-item" id="nav-search" href="#" onclick="navigate('search'); return false;"><span class="nav-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="6.5" cy="6.5" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg></span><span class="nav-label">Recherche</span></a>
+    <a class="nav-item" id="nav-results" href="#" onclick="navigate('results'); return false;"><span class="nav-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="9" x2="9" y2="9"/></svg></span><span class="nav-label">Résultats</span></a>
+    <a class="nav-item" id="nav-contact" href="#" onclick="navigate('contact'); return false;"><span class="nav-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="14" height="10" rx="2"/><polyline points="1,3 8,9 15,3"/></svg></span><span class="nav-label">Contact</span></a>
+    <a class="nav-item" id="nav-settings" href="#" onclick="navigate('settings'); return false;"><span class="nav-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.1 3.1l1.1 1.1M11.8 11.8l1.1 1.1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1"/></svg></span><span class="nav-label">Paramètres</span></a>
+    <a class="nav-item" id="nav-clients" href="#" onclick="navigate('clients'); return false;"><span class="nav-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5"/><circle cx="12" cy="5" r="2"/><path d="M12 9c1.8.3 3 1.5 3 3.5"/></svg></span><span class="nav-label">Clients</span></a>
+  </div>
+  <div class="sidebar-footer">
+    <div class="user-info">
+      <div class="user-avatar">M</div>
+      <div>
+        <div class="user-name">MARTIN Sophie</div>
+        <div class="user-mat">MAT: 23A578</div>
+      </div>
+    </div>
+    <div class="session-dot">Session active</div>
+    <button class="btn-logout" onclick="logoutSession()"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/><polyline points="11,11 14,8 11,5"/><line x1="14" y1="8" x2="6" y2="8"/></svg><span>Éteindre la session</span></button>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <button class="btn btn-primary" onclick="navigate('search')">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="6.5" cy="6.5" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>
+      Nouvelle recherche
+    </button>
+    <button class="btn btn-ghost" onclick="clearAll()" title="Effacer">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,4 13,4"/><path d="M5 4V2h6v2"/><rect x="4" y="4" width="8" height="10" rx="1.5"/><line x1="6" y1="7" x2="6" y2="11"/><line x1="10" y1="7" x2="10" y2="11"/></svg>
+    </button>
+    <div id="topbarResultArea" style="display:none; align-items:center; gap:8px; margin-left:4px;">
+      <button class="btn btn-ghost btn-sm" onclick="prevRecord()">‹</button>
+      <span id="recordCounter" style="font-size:11px; color:var(--text-2); font-family:'IBM Plex Mono',monospace;"></span>
+      <button class="btn btn-ghost btn-sm" onclick="nextRecord()">›</button>
+    </div>
+    <div class="topbar-right"><span id="clockDisplay"></span></div>
+  </div>
+
+  <div class="chip-row" id="chipRow" style="display:none"></div>
+
+  <!-- RECHERCHE -->
+  <div id="page-search" class="page" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;gap:1.2rem;">
+    <div class="search-logo">
+      <div class="search-logo-icon" style="background:#1f6feb; border-radius:12px; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+        <svg width="36" height="36" viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
+          <rect x="18" y="10" width="46" height="58" rx="5" fill="white"/>
+          <circle cx="21" cy="24" r="4" fill="#1f6feb" stroke="white" stroke-width="1.2"/>
+          <circle cx="21" cy="39" r="4" fill="#1f6feb" stroke="white" stroke-width="1.2"/>
+          <circle cx="21" cy="54" r="4" fill="#1f6feb" stroke="white" stroke-width="1.2"/>
+          <rect x="30" y="22" width="26" height="3" rx="1.5" fill="#c0ccd8"/>
+          <rect x="30" y="30" width="22" height="3" rx="1.5" fill="#c0ccd8"/>
+          <rect x="30" y="38" width="26" height="3" rx="1.5" fill="#c0ccd8"/>
+          <rect x="30" y="46" width="18" height="3" rx="1.5" fill="#c0ccd8"/>
+          <rect x="30" y="54" width="23" height="3" rx="1.5" fill="#c0ccd8"/>
+          <circle cx="56" cy="62" r="14" fill="white" opacity="0.18" stroke="white" stroke-width="3.5"/>
+          <circle cx="56" cy="62" r="10.5" fill="#1a3a6b" opacity="0.9"/>
+          <circle cx="51" cy="57" r="3" fill="white" opacity="0.3"/>
+          <line x1="67" y1="72" x2="76" y2="81" stroke="white" stroke-width="4" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="search-logo-text">Loyal</div>
+    </div>
+    <p class="search-subtitle">Colle tes données brutes — le système détecte et structure automatiquement<br>identité, famille, IPs, comptes Discord, diplômes, emplois…</p>
+    <div class="search-box-big">
+      <textarea id="mainInput" class="search-input" placeholder="Colle ici ton texte brut...
+
+Exemples :
+• Fiche classique : Nom, téléphone, email, adresse
+• Ligne DB : (32526, 'license:xxx', 'discord:xxx', ...)
+• Réseau familial : père :, mère :, tonton :, tatie :...
+• Adresses IP multiples
+• Diplômes / emplois / parcours
+
+Ctrl+Entrée pour analyser"></textarea>
+      <div class="search-footer">
+        <span class="search-hint">Ctrl+Entrée pour analyser · Fichier .txt/.csv</span>
+        <div class="search-actions">
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer">Fichier<input type="file" accept=".txt,.csv" style="display:none" onchange="handleFileImport(event)"/></label>
+          <button class="btn btn-primary btn-sm" onclick="doSearch()">Analyser →</button>
+        </div>
+      </div>
+    </div>
+    <div id="recentHint" style="font-size:11px; color:var(--text-3);"></div>
+  </div>
+
+  <!-- RÉSULTATS -->
+  <div id="page-results" class="page results-page" style="display:none;">
+    <div class="result-meta">
+      <div class="result-meta-left"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="6.5"/><line x1="8" y1="7" x2="8" y2="11"/><circle cx="8" cy="5" r=".8" fill="currentColor"/></svg><span id="resultMeta">—</span></div>
+      <div class="result-meta-right">
+        <button class="view-btn active" id="vbtn-dsc" onclick="setView('dsc')">Vue DSC</button>
+        <button class="view-btn" id="vbtn-tlg" onclick="setView('tlg')">Vue TLG <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="5" width="8" height="6" rx="1"/><path d="M4 5V3.5a2 2 0 0 1 4 0V5"/></svg></button>
+        <button class="view-btn" id="vbtn-kk" onclick="setView('kk')">Vue KK <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="5" width="8" height="6" rx="1"/><path d="M4 5V3.5a2 2 0 0 1 4 0V5"/></svg></button>
+      </div>
+    </div>
+    <div class="record-wrap">
+      <div class="record-toolbar">
+        <div class="record-toolbar-left">
+          <button class="icon-btn" title="Options">···</button>
+          <button class="icon-btn" title="Verrouillé"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="5" width="8" height="6" rx="1"/><path d="M4 5V3.5a2 2 0 0 1 4 0V5"/></svg></button>
+        </div>
+        <div class="record-toolbar-right">
+          <button class="btn btn-ghost btn-sm" onclick="copyRecord()">Copier</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportCSV()">CSV</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportTXT()">TXT</button>
+        </div>
+      </div>
+      <div class="sections" id="sections"></div>
+      <div style="padding:12px 16px; border-top:1px solid var(--border2); text-align:right;">
+        <button class="btn btn-ghost btn-sm" onclick="showToast('Profil complet — non disponible', 'err')">Voir le profil complet →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTACT -->
+  <div id="page-contact" class="page" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:1.5rem;padding:3rem;">
+    <div style="text-align:center;">
+      <div style="display:flex;justify-content:center;margin-bottom:1rem;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><polygon points="22,2 15,22 11,13 2,9"/></svg></div>
+      <h2 style="font-size:1.2rem; font-weight:700; margin-bottom:.4rem; color:var(--text);">Support & Contact</h2>
+      <p style="color:var(--text-2); font-size:13px; max-width:360px;">Pour toute question, bug ou demande d'assistance, contacte-nous directement sur Telegram.</p>
+    </div>
+    <a href="https://t.me/freestylezoo" target="_blank" class="btn btn-primary" style="font-size:14px; padding:10px 24px; gap:10px; text-decoration:none;">@freestylezoo sur Telegram</a>
+    <div style="font-size:11px; color:var(--text-3);">Réponse rapide · Disponible 7j/7</div>
+  </div>
+
+  <!-- PARAMÈTRES -->
+  <div id="page-settings" class="page" style="display:none;flex:1;flex-direction:column;overflow-y:auto;padding:24px;">
+    <div style="max-width:600px; width:100%; margin:0 auto;">
+      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px; color:var(--text);">Paramètres</h2>
+      <p style="font-size:12px; color:var(--text-3); margin-bottom:24px;">Personnalise l'interface et le comportement de l'application.</p>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Apparence</div>
+        <div class="settings-row">
+          <div class="settings-info"><div class="settings-label">Thème</div><div class="settings-desc">Couleur générale de l'interface</div></div>
+          <div class="settings-control" style="display:flex; gap:8px;">
+            <button class="theme-pill" id="theme-btn-dark" onclick="applyTheme('dark'); setActiveThemeBtn('dark')" title="Sombre">
+              <svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill="#0d1117"/></svg>
+              Sombre
+            </button>
+            <button class="theme-pill" id="theme-btn-light" onclick="applyTheme('light'); setActiveThemeBtn('light')" title="Clair">
+              <svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5.5" fill="white" stroke="#d0d7de" stroke-width="1"/></svg>
+              Clair
+            </button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-info"><div class="settings-label">Couleur d'accent</div><div class="settings-desc">Couleur principale des boutons et liens</div></div>
+          <div class="settings-control" style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button class="color-dot active" style="background:#1f6feb;" onclick="setAccent('#1f6feb','#388bfd',this)" title="Bleu"></button>
+            <button class="color-dot" style="background:#3fb950;" onclick="setAccent('#3fb950','#56d364',this)" title="Vert"></button>
+            <button class="color-dot" style="background:#bc8cff;" onclick="setAccent('#bc8cff','#d2a8ff',this)" title="Violet"></button>
+            <button class="color-dot" style="background:#f78166;" onclick="setAccent('#f78166','#ffa198',this)" title="Rouge"></button>
+            <button class="color-dot" style="background:#d29922;" onclick="setAccent('#d29922','#e3b341',this)" title="Orange"></button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-info"><div class="settings-label">Largeur des labels</div><div class="settings-desc">Largeur de la colonne clé dans les fiches</div></div>
+          <div class="settings-control">
+            <select id="set-labelw" class="select-input" onchange="setLabelWidth(this.value)">
+              <option value="160px">Étroit (160px)</option>
+              <option value="200px" selected>Normal (200px)</option>
+              <option value="240px">Large (240px)</option>
+              <option value="280px">Très large (280px)</option>
+            </select>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-info"><div class="settings-label">Sidebar réduite au démarrage</div><div class="settings-desc">Réduire automatiquement la barre latérale</div></div>
+          <div class="settings-control">
+            <label class="toggle-switch"><input type="checkbox" id="set-collapseSidebar" onchange="saveSetting('collapseSidebar', this.checked)"><span class="toggle-track"></span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Analyse & Parsing</div>
+        <div class="settings-row">
+          <div class="settings-info"><div class="settings-label">Détecter les lignes DB</div><div class="settings-desc">Extraire les données depuis des tuples SQL</div></div>
+          <div class="settings-control"><label class="toggle-switch"><input type="checkbox" id="set-parseDB" checked onchange="saveSetting('parseDB', this.checked)"><span class="toggle-track"></span></label></div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-info"><div class="settings-label">Détecter les adresses IP</div><div class="settings-desc">Extraire et afficher les IPs trouvées</div></div>
+          <div class="settings-control"><label class="toggle-switch"><input type="checkbox" id="set-parseIP" checked onchange="saveSetting('parseIP', this.checked)"><span class="toggle-track"></span></label></div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-info"><div class="settings-label">Détecter les relations familiales</div><div class="settings-desc">Trier père, mère, tonton, tatie…</div></div>
+          <div class="settings-control"><label class="toggle-switch"><input type="checkbox" id="set-parseFamily" checked onchange="saveSetting('parseFamily', this.checked)"><span class="toggle-track"></span></label></div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Données</div>
+        <div class="settings-row">
+          <div class="settings-info"><div class="settings-label">Enregistrements en mémoire</div><div class="settings-desc" id="set-memcount">Calcul…</div></div>
+          <div class="settings-control"><button class="btn btn-ghost btn-sm" onclick="clearAll()">Effacer tout</button></div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-info"><div class="settings-label">Version</div><div class="settings-desc">Loyal v2.1 — Build 2025</div></div>
+          <div class="settings-control"><span style="font-size:11px; color:var(--text-3); font-family:'IBM Plex Mono',monospace;">v2.1</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLIENTS -->
+  <div id="page-clients" class="page" style="display:none;flex:1;flex-direction:column;padding:24px;">
+    <div style="max-width:900px; width:100%; margin:0 auto;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <div>
+          <h2 style="font-size:15px; font-weight:700; color:var(--text);">Clients enregistrés</h2>
+          <p style="font-size:12px; color:var(--text-3);" id="clients-count">—</p>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <input id="clients-search" type="text" class="search-input-inline" placeholder="Filtrer…" oninput="filterClients(this.value)"/>
+          <button class="btn btn-ghost btn-sm" onclick="exportCSV()">CSV</button>
+        </div>
+      </div>
+      <div id="clients-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="auth.js"></script>
+<script>
+// ── Vérification session au chargement ──
+(function() {
+  const session = Auth.checkAuth();
+  if (!session) return; // redirigé vers login
+  // Afficher les infos de session dans la sidebar
+  const nameEl = document.querySelector('.user-name');
+  const matEl  = document.querySelector('.user-mat');
+  const dotEl  = document.querySelector('.session-dot');
+  if (nameEl) nameEl.textContent = session.label;
+  if (matEl)  matEl.textContent  = 'IP: ' + (session.ip || 'libre');
+  if (dotEl)  dotEl.id = 'sessionCountdown';
+  // Démarrer le minuteur de session
+  Auth.startSessionTimer(session);
+})();
+</script>
+<script src="app.js"></script>
+<script>
+function logoutSession() {
+  const token = sessionStorage.getItem('loyal_token');
+  if (token) Auth.SessionManager.revoke(token);
+  sessionStorage.removeItem('loyal_token');
+  showToast('Session terminée', 'ok');
+  setTimeout(() => Auth.redirectToLogin('Session terminée'), 800);
+}
+
+function toggleSidebar() {
+  const s = document.getElementById('sidebar');
+  s.classList.toggle('collapsed');
+  document.querySelector('.sidebar-toggle').textContent = s.classList.contains('collapsed') ? '›' : '‹';
+}
+
+let currentPage = 'search';
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const el = document.getElementById('page-' + page);
+  if (el) el.style.display = (page === 'results') ? 'block' : 'flex';
+  const nav = document.getElementById('nav-' + page);
+  if (nav) nav.classList.add('active');
+  currentPage = page;
+  if (page === 'clients') renderClientsPage();
+  if (page === 'settings') initSettings();
+  if (page === 'results' && records.length === 0) { navigate('search'); return; }
+  document.getElementById('topbarResultArea').style.display = (page === 'results' && records.length > 0) ? 'flex' : 'none';
+  document.getElementById('chipRow').style.display = (page === 'results' && records.length > 0) ? '' : 'none';
+}
+
+function goSearch() { navigate('search'); }
+function showSearch() { navigate('search'); }
+function showResults() { navigate('results'); }
+
+function updateClock() {
+  const now = new Date();
+  const el = document.getElementById('clockDisplay');
+  if (el) el.textContent = [now.getHours(), now.getMinutes(), now.getSeconds()].map(n => n.toString().padStart(2,'0')).join(':');
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+function initSettings() {
+  const prefs = JSON.parse(localStorage.getItem('loyal_prefs') || '{}');
+  if (prefs.theme) { setActiveThemeBtn(prefs.theme); }
+  if (prefs.labelWidth) { document.getElementById('set-labelw').value = prefs.labelWidth; }
+  if (prefs.collapseSidebar) document.getElementById('set-collapseSidebar').checked = true;
+  if (prefs.parseDB !== undefined) document.getElementById('set-parseDB').checked = prefs.parseDB;
+  if (prefs.parseIP !== undefined) document.getElementById('set-parseIP').checked = prefs.parseIP;
+  if (prefs.parseFamily !== undefined) document.getElementById('set-parseFamily').checked = prefs.parseFamily;
+  const recs = JSON.parse(localStorage.getItem('loyal_records') || '[]');
+  document.getElementById('set-memcount').textContent = recs.length ? `${recs.length} enregistrement(s) en mémoire` : 'Aucun enregistrement en mémoire';
+  const accent = prefs.accent;
+  if (accent) {
+    document.querySelectorAll('.color-dot').forEach(d => {
+      d.classList.toggle('active', d.style.background === accent || d.style.backgroundColor === accent);
+    });
+  }
+}
+
+function setActiveThemeBtn(t) {
+  document.querySelectorAll('.theme-pill').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('theme-btn-' + t);
+  if (btn) btn.classList.add('active');
+}
+
+function saveSetting(key, val) {
+  const prefs = JSON.parse(localStorage.getItem('loyal_prefs') || '{}');
+  prefs[key] = val;
+  localStorage.setItem('loyal_prefs', JSON.stringify(prefs));
+  showToast('Paramètre enregistré', 'ok');
+}
+
+function applyTheme(t) {
+  const themes = {
+    dark:  { bg:'#0d1117', bg2:'#161b22', bg3:'#1c2128', sidebar:'#0d1117', text:'#e6edf3', 'text-2':'#8b949e', 'text-3':'#484f58', border:'#30363d', border2:'#21262d' },
+    light: { bg:'#f6f8fa', bg2:'#ffffff',  bg3:'#f1f3f5', sidebar:'#ffffff', text:'#1f2328', 'text-2':'#57606a', 'text-3':'#8c959f', border:'#d0d7de', border2:'#d8dee4' },
+  };
+  const th = themes[t] || themes.dark;
+  const r = document.documentElement.style;
+  Object.entries(th).forEach(([k, v]) => r.setProperty('--' + k, v));
+  saveSetting('theme', t);
+}
+
+function updateLogoColor() {
+  const color = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  // Update all logo-avatar backgrounds
+  document.querySelectorAll('.logo-avatar, .search-logo-icon').forEach(el => {
+    el.style.background = color;
+  });
+  // Update inline SVG fills that use accent color
+  document.querySelectorAll('.logo-avatar svg circle[fill="#1f6feb"], .logo-avatar svg rect[fill="#1f6feb"]').forEach(el => {
+    el.setAttribute('fill', color);
+  });
+}
+
+function setAccent(color, hover, btn) {
+  document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+  btn.classList.add('active');
+  document.documentElement.style.setProperty('--accent', color);
+  document.documentElement.style.setProperty('--accent-h', hover);
+  updateLogoColor();
+  const prefs = JSON.parse(localStorage.getItem('loyal_prefs') || '{}');
+  prefs.accent = color; prefs.accentH = hover;
+  localStorage.setItem('loyal_prefs', JSON.stringify(prefs));
+  showToast('Accent mis à jour', 'ok');
+}
+
+function setLabelWidth(val) {
+  document.documentElement.style.setProperty('--label-w', val);
+  saveSetting('labelWidth', val);
+}
+
+function renderClientsPage() {
+  const recs = JSON.parse(localStorage.getItem('loyal_records') || '[]');
+  document.getElementById('clients-count').textContent = `${recs.length} enregistrement(s) en mémoire`;
+  renderClientsList(recs);
+}
+
+function filterClients(q) {
+  const recs = JSON.parse(localStorage.getItem('loyal_records') || '[]');
+  const filtered = q ? recs.filter(r => (r.nom+r.prenom+r.email+r.mobile+r.ville).toLowerCase().includes(q.toLowerCase())) : recs;
+  renderClientsList(filtered);
+}
+
+function renderClientsList(recs) {
+  const el = document.getElementById('clients-list');
+  if (!recs.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">👤</div><h3>Aucun client enregistré</h3><p>Analyse des données pour commencer.</p></div>'; return; }
+  el.innerHTML = recs.map((r, i) => `
+    <div class="client-row" onclick="currentIdx=${i};navigate('results');renderAll();">
+      <div class="client-avatar">${(r.prenom||r.nom||'?').charAt(0).toUpperCase()}</div>
+      <div class="client-info">
+        <div class="client-name">${[r.prenom, r.nom].filter(Boolean).join(' ') || '—'}</div>
+        <div class="client-meta">${[r.email, r.mobile, r.ville].filter(Boolean).join(' · ') || 'Données incomplètes'}</div>
+      </div>
+      <div class="client-badge">#${i+1}</div>
+    </div>`).join('');
+}
+
+// Init prefs on load
+(function() {
+  const prefs = JSON.parse(localStorage.getItem('loyal_prefs') || '{}');
+  if (prefs.theme) {
+    const themes = {
+      dark:  { bg:'#0d1117', bg2:'#161b22', bg3:'#1c2128', sidebar:'#0d1117', text:'#e6edf3', 'text-2':'#8b949e', 'text-3':'#484f58', border:'#30363d', border2:'#21262d' },
+      light: { bg:'#f6f8fa', bg2:'#ffffff',  bg3:'#f1f3f5', sidebar:'#ffffff', text:'#1f2328', 'text-2':'#57606a', 'text-3':'#8c959f', border:'#d0d7de', border2:'#d8dee4' },
+    };
+    const th = themes[prefs.theme] || {};
+    Object.entries(th).forEach(([k,v]) => document.documentElement.style.setProperty('--'+k, v));
+  }
+  if (prefs.accent) {
+    document.documentElement.style.setProperty('--accent', prefs.accent);
+    document.documentElement.style.setProperty('--accent-h', prefs.accentH||prefs.accent);
+  }
+  if (prefs.labelWidth) document.documentElement.style.setProperty('--label-w', prefs.labelWidth);
+  if (prefs.collapseSidebar) document.getElementById('sidebar').classList.add('collapsed');
+  // Apply logo color after DOM is ready
+  requestAnimationFrame(updateLogoColor);
+  navigate('search');
+})();
+
+const saved = JSON.parse(localStorage.getItem('loyal_records') || '[]');
+if (saved.length > 0) {
+  const hint = document.getElementById('recentHint');
+  if (hint) hint.innerHTML = `${saved.length} enregistrement(s) en mémoire — <a href="#" style="color:var(--accent-h)" onclick="records=JSON.parse(localStorage.getItem('loyal_records')||'[]');navigate('results');renderAll();return false;">Recharger</a> ou <a href="#" style="color:var(--red)" onclick="clearAll();return false;">Effacer</a>`;
+}
+</script>
+</body>
+</html>
