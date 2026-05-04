@@ -353,7 +353,7 @@ async function adminLogin() {
 }
 
 function adminLogout() {
-  adminPassword = '';
+  adminPassword = 'loyal_admin_2024';
   document.getElementById('adminApp').classList.remove('show');
   document.getElementById('loginGate').style.display = 'flex';
   document.getElementById('adminPwd').value = '';
@@ -372,7 +372,7 @@ function showTab(name, btn) {
 
 // ── API HELPERS ───────────────────────────────────────────────
 function adminHeaders() {
-  return { 'Content-Type': 'application/json', 'x-admin-password': adminPassword };
+  return { 'Content-Type': 'application/json', 'loyal_admin_2024': adminPassword };
 }
 
 function fmtDate(ts) {
