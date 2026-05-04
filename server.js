@@ -26,6 +26,7 @@ function fmtDate(ts) {
 }
 
 // ── Middleware ───────────────────────────────────────────────
+app.set('trust proxy', true); // Faire confiance au proxy Railway
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
@@ -51,9 +52,10 @@ app.get('/api/auth/check', (req, res) => {
   }
 
   // Vérif IP si configurée
-  const clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
-  if (session.ip && session.ip !== clientIp) {
-    return res.json({ valid: false, reason: `IP non autorisée (attendu: ${session.ip})` });
+  const clientIp = req.ip || req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
+  const clientIpClean = clientIp?.replace(/^::ffff:/, ''); // Nettoyer IPv6 mapped IPv4
+  if (session.ip && session.ip !== clientIpClean) {
+    return res.json({ valid: false, reason: `IP non autorisée (attendu: ${session.ip}, reçu: ${clientIpClean})` });
   }
 
   session.lastSeen = now();
