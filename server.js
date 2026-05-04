@@ -3,30 +3,41 @@
 const express = require('express');
 const path    = require('path');
 const crypto  = require('crypto');
+const { Pool } = require('pg');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// ── Config ──────────────────────────────────────────────────
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'loyal_admin_2024';
 
-// ── Sessions en mémoire ──────────────────────────────────────
-const sessions = new Map(); // token → session object
+// ── PostgreSQL ───────────────────────────────────────────────
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes('railway.internal') ? false : { rejectUnauthorized: false },
+});
 
+async function initDB() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      token       TEXT PRIMARY KEY,
+      label       TEXT NOT NULL DEFAULT 'Session sans nom',
+      ip          TEXT DEFAULT '',
+      created_at  BIGINT NOT NULL,
+      expires_at  BIGINT NOT NULL,
+      last_seen   BIGINT
+    )
+  `);
+  console.log('✅ Base de données prête');
+}
+
+// ── Utilitaires ──────────────────────────────────────────────
 function genToken(len = 32) {
   return crypto.randomBytes(len).toString('hex').slice(0, len);
 }
-
 function now() { return Date.now(); }
 
-function fmtDate(ts) {
-  if (!ts) return '—';
-  const d = new Date(ts);
-  return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
-
 // ── Middleware ───────────────────────────────────────────────
-app.set('trust proxy', true); // Faire confiance au proxy Railway
+app.set('trust proxy', true);
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
@@ -39,82 +50,94 @@ function requireAdmin(req, res, next) {
 
 // ── Routes API ───────────────────────────────────────────────
 
-// Vérifier un token (appelé par auth.js côté client)
-app.get('/api/auth/check', (req, res) => {
+app.get('/api/auth/check', async (req, res) => {
   const token = req.query.token;
   if (!token) return res.json({ valid: false, reason: 'Token manquant' });
 
-  const session = sessions.get(token);
-  if (!session) return res.json({ valid: false, reason: 'Token invalide ou introuvable' });
-  if (session.expiresAt < now()) {
-    sessions.delete(token);
-    return res.json({ valid: false, reason: 'Session expirée' });
-  }
+  try {
+    const { rows } = await pool.query('SELECT * FROM sessions WHERE token = $1', [token]);
+    const session = rows[0];
 
-  // Vérif IP si configurée
-  const clientIp = req.ip || req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
-  const clientIpClean = clientIp?.replace(/^::ffff:/, ''); // Nettoyer IPv6 mapped IPv4
-  if (session.ip && session.ip !== clientIpClean) {
-    return res.json({ valid: false, reason: `IP non autorisée (attendu: ${session.ip}, reçu: ${clientIpClean})` });
-  }
+    if (!session) return res.json({ valid: false, reason: 'Token invalide ou introuvable' });
+    if (session.expires_at < now()) {
+      await pool.query('DELETE FROM sessions WHERE token = $1', [token]);
+      return res.json({ valid: false, reason: 'Session expirée' });
+    }
 
-  session.lastSeen = now();
-  res.json({ valid: true, expiresAt: session.expiresAt, label: session.label });
+    const clientIp = (req.ip || req.headers['x-forwarded-for']?.split(',')[0] || '').replace(/^::ffff:/, '').trim();
+    if (session.ip && session.ip !== clientIp) {
+      return res.json({ valid: false, reason: `IP non autorisée (attendu: ${session.ip}, reçu: ${clientIp})` });
+    }
+
+    await pool.query('UPDATE sessions SET last_seen = $1 WHERE token = $2', [now(), token]);
+    res.json({ valid: true, expiresAt: session.expires_at, label: session.label });
+
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ valid: false, reason: 'Erreur serveur' });
+  }
 });
 
-// Lister les sessions (admin)
-app.get('/api/sessions', requireAdmin, (req, res) => {
-  const list = [...sessions.values()].map(s => ({
-    ...s,
-    expired:   s.expiresAt < now(),
-    remaining: Math.max(0, s.expiresAt - now()),
-  }));
-  res.json(list);
+app.get('/api/sessions', requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM sessions ORDER BY created_at DESC');
+    res.json(rows.map(s => ({
+      token:     s.token,
+      label:     s.label,
+      ip:        s.ip,
+      createdAt: s.created_at,
+      expiresAt: s.expires_at,
+      lastSeen:  s.last_seen,
+      expired:   s.expires_at < now(),
+      remaining: Math.max(0, s.expires_at - now()),
+    })));
+  } catch (e) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
 });
 
-// Créer une session (admin)
-app.post('/api/sessions', requireAdmin, (req, res) => {
+app.post('/api/sessions', requireAdmin, async (req, res) => {
   const { label, ip, duration } = req.body;
-  const token = genToken();
-  const session = {
-    token,
-    label:     label || 'Session sans nom',
-    ip:        ip || '',
-    createdAt: now(),
-    expiresAt: now() + (duration || 30 * 60 * 1000),
-    lastSeen:  null,
-  };
-  sessions.set(token, session);
-  const link = `${req.protocol}://${req.get('host')}/?token=${token}`;
-  res.json({ ...session, link });
+  const token     = genToken();
+  const createdAt = now();
+  const expiresAt = now() + (duration || 30 * 60 * 1000);
+
+  try {
+    await pool.query(
+      'INSERT INTO sessions (token, label, ip, created_at, expires_at) VALUES ($1, $2, $3, $4, $5)',
+      [token, label || 'Session sans nom', ip || '', createdAt, expiresAt]
+    );
+    const link = `${req.protocol}://${req.get('host')}/?token=${token}`;
+    res.json({ token, label, ip, createdAt, expiresAt, link });
+  } catch (e) {
+    res.status(500).json({ error: 'Erreur création session' });
+  }
 });
 
-// Supprimer une session (admin)
-app.delete('/api/sessions/:token', requireAdmin, (req, res) => {
-  sessions.delete(req.params.token);
+app.delete('/api/sessions/:token', requireAdmin, async (req, res) => {
+  await pool.query('DELETE FROM sessions WHERE token = $1', [req.params.token]);
   res.json({ ok: true });
 });
 
-// Prolonger une session de 30 min (admin)
-app.patch('/api/sessions/:token/extend', requireAdmin, (req, res) => {
-  const session = sessions.get(req.params.token);
-  if (!session) return res.status(404).json({ error: 'Session introuvable' });
-  session.expiresAt = now() + 30 * 60 * 1000;
-  res.json({ ok: true, expiresAt: session.expiresAt });
+app.patch('/api/sessions/:token/extend', requireAdmin, async (req, res) => {
+  const expiresAt = now() + 30 * 60 * 1000;
+  await pool.query('UPDATE sessions SET expires_at = $1 WHERE token = $2', [expiresAt, req.params.token]);
+  res.json({ ok: true, expiresAt });
 });
 
-// Supprimer toutes les sessions (admin)
-app.delete('/api/sessions', requireAdmin, (req, res) => {
-  sessions.clear();
+app.delete('/api/sessions', requireAdmin, async (req, res) => {
+  await pool.query('DELETE FROM sessions');
   res.json({ ok: true });
 });
 
-// ── Fallback → index.html ────────────────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // ── Démarrage ────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`✅ Loyal server running on port ${PORT}`);
+initDB().then(() => {
+  app.listen(PORT, () => console.log(`✅ Loyal server running on port ${PORT}`));
+}).catch(e => {
+  console.error('❌ Erreur DB:', e);
+  process.exit(1);
 });
