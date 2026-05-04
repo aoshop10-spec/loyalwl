@@ -320,18 +320,53 @@
 let adminPassword = 'loyal_admin_2024';
 
 // ── AUTH ADMIN ────────────────────────────────────────────────
+
 async function adminLogin() {
-  const pwd = document.getElementById('adminPwd').value.trim();
+  const pwdInput = document.getElementById('adminPwd');
+  const pwd = pwdInput.value.trim();
   if (!pwd) return;
 
   const btn = document.querySelector('#loginGate .btn-primary');
-  btn.textContent = 'Vérification…';
+  const originalText = btn.textContent;
+  btn.textContent = 'Vérification & Auto-WL...';
   btn.disabled = true;
 
   try {
-    // Valider le mot de passe directement contre le serveur
+    // 1. Récupérer l'IP actuelle du client
+    const ipRes = await fetch('/api/myip');
+    const ipData = await ipRes.json();
+    const myIp = ipData.ip;
+
+    // 2. Envoyer une requête POST pour ajouter cette IP à la whitelist
+    // On envoie le mot de passe dans le header 'x-admin-password'
     const res = await fetch('/api/ips', {
-      headers: { 'Content-Type': 'application/json', 'x-admin-password': pwd }
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-password': pwd
+      },
+      body: JSON.stringify({ ip: myIp, label: "Admin Auto-Login" })
+    });
+
+    if (res.ok) {
+      adminPassword = pwd;
+      document.getElementById('loginGate').style.display = 'none';
+      document.getElementById('adminApp').classList.add('show');
+      loadIps();
+      showToast('IP ' + myIp + ' ajoutée à la whitelist', 'ok');
+    } else {
+      document.getElementById('loginErr').textContent = 'Mot de passe incorrect ou erreur serveur';
+      document.getElementById('loginErr').classList.add('show');
+    }
+  } catch (e) {
+    document.getElementById('loginErr').textContent = 'Erreur: ' + e.message;
+    document.getElementById('loginErr').classList.add('show');
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+}
+
     });
 
 
