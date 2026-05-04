@@ -2,7 +2,6 @@
 
 const express = require('express');
 const path    = require('path');
-const crypto  = require('crypto');
 const { Pool } = require('pg');
 
 const app  = express();
@@ -18,28 +17,26 @@ const pool = new Pool({
 
 async function initDB() {
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS sessions (
-      token       TEXT PRIMARY KEY,
-      label       TEXT NOT NULL DEFAULT 'Session sans nom',
-      ip          TEXT DEFAULT '',
-      created_at  BIGINT NOT NULL,
-      expires_at  BIGINT NOT NULL,
-      last_seen   BIGINT
+    CREATE TABLE IF NOT EXISTS ip_whitelist (
+      ip         TEXT PRIMARY KEY,
+      label      TEXT NOT NULL DEFAULT '',
+      added_at   BIGINT NOT NULL
     )
   `);
   console.log('✅ Base de données prête');
 }
 
 // ── Utilitaires ──────────────────────────────────────────────
-function genToken(len = 32) {
-  return crypto.randomBytes(len).toString('hex').slice(0, len);
-}
 function now() { return Date.now(); }
+
+function getClientIp(req) {
+  const raw = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '';
+  return raw.replace(/^::ffff:/, '').trim();
+}
 
 // ── Middleware ───────────────────────────────────────────────
 app.set('trust proxy', true);
 app.use(express.json());
-app.use(express.static(path.join(__dirname)));
 
 // ── Auth admin ───────────────────────────────────────────────
 function requireAdmin(req, res, next) {
@@ -50,85 +47,75 @@ function requireAdmin(req, res, next) {
 
 // ── Routes API ───────────────────────────────────────────────
 
+// IP du visiteur
+app.get('/api/myip', (req, res) => {
+  res.json({ ip: getClientIp(req) });
+});
+
+// Vérification d'accès par IP
 app.get('/api/auth/check', async (req, res) => {
-  const token = req.query.token;
-  if (!token) return res.json({ valid: false, reason: 'Token manquant' });
-
+  const clientIp = getClientIp(req);
   try {
-    const { rows } = await pool.query('SELECT * FROM sessions WHERE token = $1', [token]);
-    const session = rows[0];
-
-    if (!session) return res.json({ valid: false, reason: 'Token invalide ou introuvable' });
-    if (session.expires_at < now()) {
-      await pool.query('DELETE FROM sessions WHERE token = $1', [token]);
-      return res.json({ valid: false, reason: 'Session expirée' });
+    const { rows } = await pool.query('SELECT * FROM ip_whitelist WHERE ip = $1', [clientIp]);
+    if (rows.length > 0) {
+      res.json({ valid: true, label: rows[0].label, ip: clientIp });
+    } else {
+      res.json({ valid: false, reason: 'Adresse IP non autorisée', ip: clientIp });
     }
-
-    const clientIp = (req.ip || req.headers['x-forwarded-for']?.split(',')[0] || '').replace(/^::ffff:/, '').trim();
-    if (session.ip && session.ip !== clientIp) {
-      return res.json({ valid: false, reason: `IP non autorisée (attendu: ${session.ip}, reçu: ${clientIp})` });
-    }
-
-    await pool.query('UPDATE sessions SET last_seen = $1 WHERE token = $2', [now(), token]);
-    res.json({ valid: true, expiresAt: session.expires_at, label: session.label });
-
   } catch (e) {
     console.error(e);
     res.status(500).json({ valid: false, reason: 'Erreur serveur' });
   }
 });
 
-app.get('/api/sessions', requireAdmin, async (req, res) => {
+// Lister les IPs whitelistées (admin)
+app.get('/api/ips', requireAdmin, async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM sessions ORDER BY created_at DESC');
-    res.json(rows.map(s => ({
-      token:     s.token,
-      label:     s.label,
-      ip:        s.ip,
-      createdAt: s.created_at,
-      expiresAt: s.expires_at,
-      lastSeen:  s.last_seen,
-      expired:   s.expires_at < now(),
-      remaining: Math.max(0, s.expires_at - now()),
-    })));
+    const { rows } = await pool.query('SELECT * FROM ip_whitelist ORDER BY added_at DESC');
+    res.json(rows.map(r => ({ ip: r.ip, label: r.label, addedAt: r.added_at })));
   } catch (e) {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
-app.post('/api/sessions', requireAdmin, async (req, res) => {
-  const { label, ip, duration } = req.body;
-  const token     = genToken();
-  const createdAt = now();
-  const expiresAt = now() + (duration || 30 * 60 * 1000);
-
+// Ajouter une IP (admin)
+app.post('/api/ips', requireAdmin, async (req, res) => {
+  const { ip, label } = req.body;
+  if (!ip) return res.status(400).json({ error: 'IP manquante' });
   try {
     await pool.query(
-      'INSERT INTO sessions (token, label, ip, created_at, expires_at) VALUES ($1, $2, $3, $4, $5)',
-      [token, label || 'Session sans nom', ip || '', createdAt, expiresAt]
+      'INSERT INTO ip_whitelist (ip, label, added_at) VALUES ($1, $2, $3) ON CONFLICT (ip) DO UPDATE SET label = $2',
+      [ip.trim(), label || '', now()]
     );
-    const link = `${req.protocol}://${req.get('host')}/?token=${token}`;
-    res.json({ token, label, ip, createdAt, expiresAt, link });
+    res.json({ ok: true, ip: ip.trim(), label: label || '' });
   } catch (e) {
-    res.status(500).json({ error: 'Erreur création session' });
+    res.status(500).json({ error: 'Erreur ajout IP' });
   }
 });
 
-app.delete('/api/sessions/:token', requireAdmin, async (req, res) => {
-  await pool.query('DELETE FROM sessions WHERE token = $1', [req.params.token]);
+// Supprimer une IP (admin)
+app.delete('/api/ips/:ip', requireAdmin, async (req, res) => {
+  const ip = decodeURIComponent(req.params.ip);
+  await pool.query('DELETE FROM ip_whitelist WHERE ip = $1', [ip]);
   res.json({ ok: true });
 });
 
-app.patch('/api/sessions/:token/extend', requireAdmin, async (req, res) => {
-  const expiresAt = now() + 30 * 60 * 1000;
-  await pool.query('UPDATE sessions SET expires_at = $1 WHERE token = $2', [expiresAt, req.params.token]);
-  res.json({ ok: true, expiresAt });
-});
-
-app.delete('/api/sessions', requireAdmin, async (req, res) => {
-  await pool.query('DELETE FROM sessions');
+// Supprimer toutes les IPs (admin)
+app.delete('/api/ips', requireAdmin, async (req, res) => {
+  await pool.query('DELETE FROM ip_whitelist');
   res.json({ ok: true });
 });
+
+// Mettre à jour le label d'une IP (admin)
+app.patch('/api/ips/:ip', requireAdmin, async (req, res) => {
+  const ip = decodeURIComponent(req.params.ip);
+  const { label } = req.body;
+  await pool.query('UPDATE ip_whitelist SET label = $1 WHERE ip = $2', [label || '', ip]);
+  res.json({ ok: true });
+});
+
+// Fichiers statiques (après les routes API)
+app.use(express.static(path.join(__dirname)));
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));

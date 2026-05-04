@@ -185,32 +185,37 @@ const IpManager = {
 
 function checkAuth() {
   const params = new URLSearchParams(window.location.search);
-  const token  = params.get(AUTH_CONFIG.tokenParam);
 
+  const tokenFromUrl = params.get(AUTH_CONFIG.tokenParam);
+  const storedToken  = sessionStorage.getItem('loyal_token');
+
+  // 🔑 On prend le token URL OU celui déjà stocké
+  const token = tokenFromUrl || storedToken;
+
+  // ❌ Aucun token trouvé
   if (!token) {
-    // Vérifier si IP whitelistée (simulé côté client — en prod utiliser un backend)
-    const storedToken = sessionStorage.getItem('loyal_token');
-    if (storedToken) {
-      const result = SessionManager.validate(storedToken, null);
-      if (result.valid) return result.session;
-    }
     redirectToLogin('Aucun token fourni');
     return null;
   }
 
+  // ✅ Vérification du token
   const result = SessionManager.validate(token, null);
+
   if (!result.valid) {
+    sessionStorage.removeItem('loyal_token');
     redirectToLogin(result.reason);
     return null;
   }
 
-  // Stocker en sessionStorage pour ne pas exposer dans l'URL
+  // ✅ On stocke le token (utile si vient de l'URL)
   sessionStorage.setItem('loyal_token', token);
 
-  // Nettoyer l'URL (retirer le token visible)
-  const clean = new URL(window.location.href);
-  clean.searchParams.delete(AUTH_CONFIG.tokenParam);
-  window.history.replaceState({}, '', clean.toString());
+  // 🧹 Nettoyer l’URL (retirer le token visible)
+  if (tokenFromUrl) {
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete(AUTH_CONFIG.tokenParam);
+    window.history.replaceState({}, '', clean.toString());
+  }
 
   return result.session;
 }
