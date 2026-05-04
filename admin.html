@@ -366,12 +366,17 @@ function fmtDate(ts) {
 async function loadIps() {
   try {
     const res = await fetch('/api/ips', { headers: adminHeaders() });
-    if (!res.ok) { showToast('Erreur chargement IPs', 'err'); return; }
+    if (!res.ok) {
+      const txt = await res.text();
+      showToast('Erreur ' + res.status + ': ' + txt.slice(0,60), 'err');
+      return;
+    }
     const ips = await res.json();
     renderIps(ips);
     document.getElementById('statIPs').textContent = ips.length;
   } catch (e) {
-    showToast('Erreur réseau', 'err');
+    showToast('Erreur réseau: ' + e.message, 'err');
+    console.error('loadIps error:', e);
   }
 }
 
@@ -434,7 +439,7 @@ async function addIp() {
       showToast(data.error || 'Erreur ajout', 'err');
     }
   } catch (e) {
-    showToast('Erreur réseau', 'err');
+    showToast('Erreur réseau: ' + e.message, 'err'); console.error(e);
   }
 }
 
@@ -446,7 +451,7 @@ async function removeIp(ip) {
     showToast(`IP ${ip} retirée`, 'ok');
     loadIps();
   } catch (e) {
-    showToast('Erreur réseau', 'err');
+    showToast('Erreur réseau: ' + e.message, 'err'); console.error(e);
   }
 }
 
@@ -458,7 +463,7 @@ async function clearAllIps() {
     showToast('Whitelist vidée', 'ok');
     loadIps();
   } catch (e) {
-    showToast('Erreur réseau', 'err');
+    showToast('Erreur réseau: ' + e.message, 'err'); console.error(e);
   }
 }
 
@@ -483,7 +488,7 @@ async function saveIpLabel() {
     showToast('Label mis à jour', 'ok');
     loadIps();
   } catch (e) {
-    showToast('Erreur réseau', 'err');
+    showToast('Erreur réseau: ' + e.message, 'err'); console.error(e);
   }
 }
 

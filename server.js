@@ -10,20 +10,30 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'loyal_admin_2024';
 
 // ── PostgreSQL ───────────────────────────────────────────────
+if (!process.env.DATABASE_URL) {
+  console.error('❌ DATABASE_URL manquant dans les variables d\'environnement !');
+  process.exit(1);
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('railway.internal') ? false : { rejectUnauthorized: false },
+  ssl: process.env.DATABASE_URL.includes('railway.internal') ? false : { rejectUnauthorized: false },
 });
 
 async function initDB() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS ip_whitelist (
-      ip         TEXT PRIMARY KEY,
-      label      TEXT NOT NULL DEFAULT '',
-      added_at   BIGINT NOT NULL
-    )
-  `);
-  console.log('✅ Base de données prête');
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ip_whitelist (
+        ip         TEXT PRIMARY KEY,
+        label      TEXT NOT NULL DEFAULT '',
+        added_at   BIGINT NOT NULL
+      )
+    `);
+    console.log('✅ Base de données prête');
+  } catch (e) {
+    console.error('❌ Erreur création table:', e.message);
+    throw e;
+  }
 }
 
 // ── Utilitaires ──────────────────────────────────────────────
@@ -117,7 +127,11 @@ app.patch('/api/ips/:ip', requireAdmin, async (req, res) => {
 // Fichiers statiques (après les routes API)
 app.use(express.static(path.join(__dirname)));
 
+// Ne pas intercepter les routes admin ou les fichiers .html existants
 app.get('*', (req, res) => {
+  if (req.path.endsWith('.html') || req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'Not found' });
+  }
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
