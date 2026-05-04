@@ -134,8 +134,11 @@ app.use(express.static(path.join(__dirname)));
 
 // Fallback SPA
 app.get('*', (req, res) => {
-  if (req.path.endsWith('.html') || req.path.startsWith('/api/')) {
+  if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'Not found' });
+  }
+  if (req.path.endsWith('.html')) {
+    return res.status(404).send('Not found');
   }
   res.sendFile(path.join(__dirname, 'index.html'));
 });

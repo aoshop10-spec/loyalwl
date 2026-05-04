@@ -334,6 +334,7 @@ async function adminLogin() {
       headers: { 'Content-Type': 'application/json', 'x-admin-password': pwd }
     });
 
+
     if (res.ok) {
       adminPassword = pwd;
       document.getElementById('loginGate').style.display = 'none';
@@ -372,7 +373,7 @@ function showTab(name, btn) {
 
 // ── API HELPERS ───────────────────────────────────────────────
 function adminHeaders() {
-  return { 'Content-Type': 'application/json', 'loyal_admin_2024': adminPassword };
+  return { 'Content-Type': 'application/json', 'x-admin-password': adminPassword };
 }
 
 function fmtDate(ts) {
@@ -466,9 +467,11 @@ async function addIp() {
 async function removeIp(ip) {
   if (!confirm(`Retirer l'IP ${ip} de la whitelist ?`)) return;
   try {
-    await fetch('/api/ips/' + encodeURIComponent(ip), { method: 'DELETE', headers: adminHeaders() });
-    showToast(`IP ${ip} retirée`, 'ok');
-    loadIps();
+    const res = await fetch('/api/ips/' + encodeURIComponent(ip), { method: 'DELETE', headers: adminHeaders() });
+    if (!res.ok) { showToast('Erreur ' + res.status, 'err'); return; }
+    const data = await res.json();
+    if (data.ok) { showToast(`IP ${ip} retirée`, 'ok'); loadIps(); }
+    else showToast(data.error || 'Erreur suppression', 'err');
   } catch (e) {
     showToast('Erreur réseau: ' + e.message, 'err'); console.error(e);
   }
@@ -478,9 +481,11 @@ async function removeIp(ip) {
 async function clearAllIps() {
   if (!confirm('Vider toute la whitelist ? Tous les accès seront bloqués.')) return;
   try {
-    await fetch('/api/ips', { method: 'DELETE', headers: adminHeaders() });
-    showToast('Whitelist vidée', 'ok');
-    loadIps();
+    const res = await fetch('/api/ips', { method: 'DELETE', headers: adminHeaders() });
+    if (!res.ok) { showToast('Erreur ' + res.status, 'err'); return; }
+    const data = await res.json();
+    if (data.ok) { showToast('Whitelist vidée', 'ok'); loadIps(); }
+    else showToast(data.error || 'Erreur suppression', 'err');
   } catch (e) {
     showToast('Erreur réseau: ' + e.message, 'err'); console.error(e);
   }
@@ -498,14 +503,20 @@ async function saveIpLabel() {
   const ip    = document.getElementById('editIpAddr').value;
   const label = document.getElementById('editIpLabel').value.trim();
   try {
-    await fetch('/api/ips/' + encodeURIComponent(ip), {
+    const res = await fetch('/api/ips/' + encodeURIComponent(ip), {
       method: 'PATCH',
       headers: adminHeaders(),
       body: JSON.stringify({ label }),
     });
-    closeModal('modalEditIp');
-    showToast('Label mis à jour', 'ok');
-    loadIps();
+    if (!res.ok) { showToast('Erreur ' + res.status, 'err'); return; }
+    const data = await res.json();
+    if (data.ok) {
+      closeModal('modalEditIp');
+      showToast('Label mis à jour', 'ok');
+      loadIps();
+    } else {
+      showToast(data.error || 'Erreur mise à jour', 'err');
+    }
   } catch (e) {
     showToast('Erreur réseau: ' + e.message, 'err'); console.error(e);
   }
