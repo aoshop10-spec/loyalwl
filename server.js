@@ -28,8 +28,13 @@ async function initDB() {
     CREATE TABLE IF NOT EXISTS ip_whitelist (
       ip         TEXT PRIMARY KEY,
       label      TEXT NOT NULL DEFAULT '',
-      added_at   BIGINT NOT NULL
+      added_at   BIGINT NOT NULL,
+      expires_at BIGINT DEFAULT NULL
     )
+  `);
+  // Migration : ajouter expires_at si manquant (table existante)
+  await pool.query(`
+    ALTER TABLE ip_whitelist ADD COLUMN IF NOT EXISTS expires_at BIGINT DEFAULT NULL
   `);
   console.log('✅ Base de données prête');
 }
@@ -64,11 +69,18 @@ app.get('/api/auth/check', async (req, res) => {
   const ip = getClientIp(req);
   try {
     const { rows } = await pool.query(
-      'SELECT ip, label FROM ip_whitelist WHERE ip = $1',
+      'SELECT ip, label, expires_at FROM ip_whitelist WHERE ip = $1',
       [ip]
     );
     if (rows.length > 0) {
-      return res.json({ valid: true, ip, label: rows[0].label || ip });
+      const row = rows[0];
+      // Vérifier l'expiration
+      if (row.expires_at && Date.now() > row.expires_at) {
+        // Session expirée — supprimer l'entrée
+        await pool.query('DELETE FROM ip_whitelist WHERE ip = $1', [ip]);
+        return res.json({ valid: false, ip, reason: 'expired' });
+      }
+      return res.json({ valid: true, ip, label: row.label || ip });
     }
     return res.json({ valid: false, ip });
   } catch (e) {
@@ -81,7 +93,7 @@ app.get('/api/auth/check', async (req, res) => {
 app.get('/api/ips', requireAdmin, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT ip, label, added_at FROM ip_whitelist ORDER BY added_at DESC'
+      'SELECT ip, label, added_at, expires_at FROM ip_whitelist ORDER BY added_at DESC'
     );
     res.json(rows);
   } catch (e) {
@@ -92,7 +104,7 @@ app.get('/api/ips', requireAdmin, async (req, res) => {
 
 // ── API : Ajouter une IP ──────────────────────────────────────
 app.post('/api/ips', requireAdmin, async (req, res) => {
-  const { ip, label } = req.body;
+  const { ip, label, duration_hours } = req.body;
   if (!ip) return res.status(400).json({ error: 'IP manquante' });
 
   // Validation basique du format IPv4/IPv6
@@ -101,14 +113,20 @@ app.post('/api/ips', requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Format IP invalide' });
   }
 
+  // Calcul de l'expiration (null = permanent)
+  let expires_at = null;
+  if (duration_hours && Number(duration_hours) > 0) {
+    expires_at = Date.now() + Number(duration_hours) * 3600 * 1000;
+  }
+
   try {
     await pool.query(
-      `INSERT INTO ip_whitelist (ip, label, added_at)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (ip) DO UPDATE SET label = EXCLUDED.label`,
-      [ip.trim(), label?.trim() || '', now()]
+      `INSERT INTO ip_whitelist (ip, label, added_at, expires_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (ip) DO UPDATE SET label = EXCLUDED.label, expires_at = EXCLUDED.expires_at`,
+      [ip.trim(), label?.trim() || '', now(), expires_at]
     );
-    res.json({ ok: true, ip, label });
+    res.json({ ok: true, ip, label, expires_at });
   } catch (e) {
     console.error('Erreur POST /api/ips:', e);
     res.status(500).json({ error: 'Erreur serveur' });

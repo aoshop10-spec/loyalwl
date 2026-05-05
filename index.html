@@ -75,7 +75,17 @@
       <div class="user-avatar" id="userAvatar">?</div>
       <div>
         <div class="user-name" id="userName">Accès autorisé</div>
-        <div class="user-mat" id="userIp">—</div>
+        <div class="user-mat" style="display:flex;align-items:center;gap:5px;">
+          <span id="userIp">—</span>
+          <button id="sidebarIpToggle" onclick="toggleSidebarIp()" title="Masquer / Afficher l'IP"
+            style="display:none;background:none;border:none;cursor:pointer;color:var(--text-3);padding:0;line-height:1;transition:color 0.15s;"
+            onmouseover="this.style.color='var(--text-2)'" onmouseout="this.style.color='var(--text-3)'">
+            <svg id="sidebarEyeIcon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/>
+              <circle cx="8" cy="8" r="2"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
     <div class="session-dot">● Connecté</div>
@@ -185,10 +195,17 @@ Ctrl+Entrée pour analyser"></textarea>
 
     // ✅ Accès autorisé — mettre à jour les infos utilisateur
     hideOverlay();
+    sessionStorage.removeItem('loyal_redirecting'); // reset flag
     const ipEl     = document.getElementById('userIp');
     const nameEl   = document.getElementById('userName');
     const avatarEl = document.getElementById('userAvatar');
-    if (ipEl)     ipEl.textContent = data.ip || '—';
+    if (ipEl) {
+      window._sidebarRealIp = data.ip || '—';
+      window._sidebarIpHidden = false;
+      ipEl.textContent = data.ip || '—';
+      const toggleBtn = document.getElementById('sidebarIpToggle');
+      if (toggleBtn && data.ip) toggleBtn.style.display = 'flex';
+    }
     if (nameEl)   nameEl.textContent = data.label || 'Accès autorisé';
     if (avatarEl) avatarEl.textContent = (data.label || data.ip || '?').charAt(0).toUpperCase();
 
@@ -201,6 +218,20 @@ Ctrl+Entrée pour analyser"></textarea>
   }
 })();
 
+
+// ── TOGGLE IP SIDEBAR ────────────────────────────────────────
+function toggleSidebarIp() {
+  window._sidebarIpHidden = !window._sidebarIpHidden;
+  const el  = document.getElementById('userIp');
+  const eye = document.getElementById('sidebarEyeIcon');
+  if (window._sidebarIpHidden) {
+    el.textContent = '••••••••••••';
+    eye.innerHTML = `<path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2"/><line x1="2" y1="2" x2="14" y2="14"/>`;
+  } else {
+    el.textContent = window._sidebarRealIp || '—';
+    eye.innerHTML = `<path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2"/>`;
+  }
+}
 // ── HORLOGE ──────────────────────────────────────────────────
 function updateClock() {
   const now = new Date();

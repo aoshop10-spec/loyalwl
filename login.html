@@ -81,7 +81,14 @@
       border-radius: 6px; padding: 6px 14px;
       font-family: 'IBM Plex Mono', monospace; font-size: 12px;
       color: var(--text-3); margin-top: 4px;
+      display: inline-flex; align-items: center; gap: 8px;
     }
+    .ip-toggle {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-3); padding: 0; line-height: 1;
+      transition: color 0.15s; display: flex; align-items: center;
+    }
+    .ip-toggle:hover { color: var(--text-2); }
 
     .card-body { padding: 0 28px 28px; }
 
@@ -134,7 +141,15 @@
 
     <div class="card-title">Accès refusé</div>
     <div class="card-subtitle">Votre adresse IP n'est pas autorisée. Contactez-nous sur Telegram pour obtenir un accès.</div>
-    <div class="ip-badge" id="ipDisplay">IP : chargement…</div>
+    <div class="ip-badge">
+      <span id="ipDisplay">IP : chargement…</span>
+      <button class="ip-toggle" id="ipToggle" onclick="toggleIp()" title="Masquer / Afficher l'IP" style="display:none">
+        <svg id="eyeIcon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/>
+          <circle cx="8" cy="8" r="2"/>
+        </svg>
+      </button>
+    </div>
   </div>
 
   <div class="card-body">
@@ -148,21 +163,46 @@
 
   <div class="card-footer">
     <span>Réponse rapide · 7j/7</span>
-    <a class="admin-link" href="admin.html">⚙ Admin</a>
   </div>
 </div>
 
 <script>
+  let _realIp = '';
+  let _ipHidden = false;
+
+  function toggleIp() {
+    _ipHidden = !_ipHidden;
+    const el = document.getElementById('ipDisplay');
+    const eye = document.getElementById('eyeIcon');
+    if (_ipHidden) {
+      el.textContent = 'Votre IP : ••••••••••••••';
+      // Icône œil barré
+      eye.innerHTML = `
+        <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/>
+        <circle cx="8" cy="8" r="2"/>
+        <line x1="2" y1="2" x2="14" y2="14"/>`;
+    } else {
+      el.textContent = 'Votre IP : ' + _realIp;
+      eye.innerHTML = `
+        <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/>
+        <circle cx="8" cy="8" r="2"/>`;
+    }
+  }
+
   // Afficher l'IP du visiteur
   (async function() {
     try {
       const res = await fetch('/api/auth/check');
       const data = await res.json();
       const el = document.getElementById('ipDisplay');
+      const toggle = document.getElementById('ipToggle');
       if (data.ip) {
+        _realIp = data.ip;
         el.textContent = 'Votre IP : ' + data.ip;
-        // Si l'IP est déjà autorisée, rediriger vers l'app
-        if (data.valid) {
+        toggle.style.display = 'flex';
+        // Si l'IP est déjà autorisée, rediriger vers l'app (une seule fois)
+        if (data.valid && !sessionStorage.getItem('loyal_redirecting')) {
+          sessionStorage.setItem('loyal_redirecting', '1');
           window.location.replace('index.html');
         }
       } else {

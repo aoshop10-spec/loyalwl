@@ -94,13 +94,13 @@
       border-radius: 8px; overflow: hidden;
     }
     .table-header {
-      display: grid; grid-template-columns: 160px 1fr 160px auto;
+      display: grid; grid-template-columns: 150px 1fr 130px 160px auto;
       padding: 8px 14px; border-bottom: 1px solid var(--border);
       font-size: 10px; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.6px; color: var(--text-3); background: var(--bg3);
     }
     .table-row {
-      display: grid; grid-template-columns: 160px 1fr 160px auto;
+      display: grid; grid-template-columns: 150px 1fr 130px 160px auto;
       padding: 10px 14px; border-bottom: 1px solid var(--border2);
       align-items: center; transition: background 0.1s;
     }
@@ -183,6 +183,21 @@
     <div class="field">
       <label>LABEL (optionnel)</label>
       <input type="text" id="newLabel" placeholder="ex: Admin principal"/>
+    </div>
+    <div class="field" style="min-width:160px; max-width:200px;">
+      <label>DURÉE DE SESSION</label>
+      <select id="newDuration" style="background:var(--bg3); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:7px 10px; font-family:'IBM Plex Sans',sans-serif; font-size:12px; outline:none; cursor:pointer;">
+        <option value="">Permanente</option>
+        <option value="1">1 heure</option>
+        <option value="6">6 heures</option>
+        <option value="12">12 heures</option>
+        <option value="24">24 heures</option>
+        <option value="48">2 jours</option>
+        <option value="72">3 jours</option>
+        <option value="168">7 jours</option>
+        <option value="336">14 jours</option>
+        <option value="720">30 jours</option>
+      </select>
     </div>
     <button class="btn-add" onclick="addIp()">+ Ajouter</button>
   </div>
@@ -283,6 +298,7 @@ async function loadIps() {
         <span>Adresse IP</span>
         <span>Label</span>
         <span>Ajouté le</span>
+        <span>Expiration</span>
         <span>Action</span>
       </div>`;
 
@@ -291,11 +307,24 @@ async function loadIps() {
         ? new Date(item.added_at).toLocaleDateString('fr-FR') + ' ' +
           new Date(item.added_at).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })
         : '—';
+
+      let expireHtml;
+      if (!item.expires_at) {
+        expireHtml = '<span style="color:var(--green);font-size:11px;font-family:\'IBM Plex Mono\',monospace;">Permanente</span>';
+      } else {
+        const expDate = new Date(item.expires_at);
+        const isExpired = Date.now() > item.expires_at;
+        const expStr = expDate.toLocaleDateString('fr-FR') + ' ' +
+          expDate.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+        expireHtml = `<span style="color:${isExpired ? 'var(--red)' : 'var(--orange)'};font-size:11px;font-family:'IBM Plex Mono',monospace;">${isExpired ? '⚠ Expiré' : expStr}</span>`;
+      }
+
       html += `
         <div class="table-row">
           <span class="ip-val">${escHtml(item.ip)}</span>
           <span class="label-val">${escHtml(item.label) || '<em style="color:var(--text-3)">—</em>'}</span>
           <span class="date-val">${date}</span>
+          ${expireHtml}
           <button class="btn-remove" onclick="removeIp('${escHtml(item.ip)}')">Retirer</button>
         </div>`;
     }
@@ -309,8 +338,9 @@ async function loadIps() {
 
 // ── AJOUTER UNE IP ───────────────────────────────────────────
 async function addIp() {
-  const ip    = document.getElementById('newIp').value.trim();
-  const label = document.getElementById('newLabel').value.trim();
+  const ip       = document.getElementById('newIp').value.trim();
+  const label    = document.getElementById('newLabel').value.trim();
+  const duration = document.getElementById('newDuration').value;
 
   if (!ip) { showToast('Veuillez entrer une adresse IP.', 'err'); return; }
 
@@ -328,13 +358,15 @@ async function addIp() {
         'Content-Type': 'application/json',
         'x-admin-password': adminPassword
       },
-      body: JSON.stringify({ ip, label })
+      body: JSON.stringify({ ip, label, duration_hours: duration ? Number(duration) : null })
     });
 
     if (res.ok) {
       document.getElementById('newIp').value = '';
       document.getElementById('newLabel').value = '';
-      showToast('✅ IP ' + ip + ' ajoutée.', 'ok');
+      document.getElementById('newDuration').value = '';
+      const durationLabel = duration ? `(${duration}h)` : '(permanent)';
+      showToast('✅ IP ' + ip + ' ajoutée ' + durationLabel, 'ok');
       loadIps();
     } else if (res.status === 401) {
       adminLogout();
