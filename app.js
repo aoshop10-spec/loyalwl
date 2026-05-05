@@ -766,3 +766,28 @@ document.addEventListener('keydown', e => {
 document.addEventListener('DOMContentLoaded', () => {
   if (records.length) renderAll();
 });
+
+// ── Init appelée après vérification IP ───────────────────────
+function initApp() {
+  // Initialiser la navigation
+  navigate('search');
+  // Charger les records existants si dispo
+  if (records.length) renderAll();
+}
+
+// ── Navigation entre pages ────────────────────────────────────
+function navigate(page) {
+  const pages = ['search', 'results', 'contact', 'settings', 'clients'];
+  pages.forEach(p => {
+    const el = document.getElementById('page-' + p);
+    if (el) el.style.display = (p === page) ? 'flex' : 'none';
+    const nav = document.getElementById('nav-' + p);
+    if (nav) nav.classList.toggle('active', p === page);
+  });
+}
+
+// ── Sidebar toggle ────────────────────────────────────────────
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  if (sb) sb.classList.toggle('collapsed');
+}
