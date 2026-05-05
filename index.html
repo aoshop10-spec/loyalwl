@@ -195,7 +195,7 @@ Ctrl+Entrée pour analyser"></textarea>
 
     // ✅ Accès autorisé — mettre à jour les infos utilisateur
     hideOverlay();
-    sessionStorage.removeItem('loyal_redirecting'); // reset flag
+    sessionStorage.removeItem('loyal_login_redirect'); // reset anti-boucle login
     const ipEl     = document.getElementById('userIp');
     const nameEl   = document.getElementById('userName');
     const avatarEl = document.getElementById('userAvatar');

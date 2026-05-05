@@ -168,7 +168,7 @@
 
 <script>
   let _realIp = '';
-  let _ipHidden = false;
+  let _ipHidden = true; // masquée par défaut
 
   function toggleIp() {
     _ipHidden = !_ipHidden;
@@ -176,7 +176,6 @@
     const eye = document.getElementById('eyeIcon');
     if (_ipHidden) {
       el.textContent = 'Votre IP : ••••••••••••••';
-      // Icône œil barré
       eye.innerHTML = `
         <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/>
         <circle cx="8" cy="8" r="2"/>
@@ -189,7 +188,7 @@
     }
   }
 
-  // Afficher l'IP du visiteur
+  // Afficher l'IP du visiteur (masquée par défaut)
   (async function() {
     try {
       const res = await fetch('/api/auth/check');
@@ -198,12 +197,21 @@
       const toggle = document.getElementById('ipToggle');
       if (data.ip) {
         _realIp = data.ip;
-        el.textContent = 'Votre IP : ' + data.ip;
+        // Masquée par défaut, icône œil barré
+        el.textContent = 'Votre IP : ••••••••••••••';
+        eye.innerHTML = `
+          <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/>
+          <circle cx="8" cy="8" r="2"/>
+          <line x1="2" y1="2" x2="14" y2="14"/>`;
         toggle.style.display = 'flex';
-        // Si l'IP est déjà autorisée, rediriger vers l'app (une seule fois)
-        if (data.valid && !sessionStorage.getItem('loyal_redirecting')) {
-          sessionStorage.setItem('loyal_redirecting', '1');
-          window.location.replace('index.html');
+        // Si l'IP est déjà autorisée, rediriger une seule fois sans boucle
+        if (data.valid) {
+          const alreadyRedirected = sessionStorage.getItem('loyal_login_redirect');
+          if (!alreadyRedirected) {
+            sessionStorage.setItem('loyal_login_redirect', '1');
+            window.location.replace('index.html');
+          }
+          // Sinon ne pas re-rediriger (évite la boucle)
         }
       } else {
         el.textContent = 'IP non détectable';

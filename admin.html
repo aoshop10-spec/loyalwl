@@ -303,19 +303,26 @@ async function loadIps() {
       </div>`;
 
     for (const item of ips) {
-      const date = item.added_at
-        ? new Date(item.added_at).toLocaleDateString('fr-FR') + ' ' +
-          new Date(item.added_at).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })
-        : '—';
+      // Robustly format a timestamp (ms since epoch, could be string or number)
+      function fmtTs(ts) {
+        if (!ts) return '—';
+        const ms = typeof ts === 'string' ? parseInt(ts, 10) : Number(ts);
+        if (!ms || isNaN(ms)) return '—';
+        const d = new Date(ms);
+        if (isNaN(d.getTime())) return '—';
+        return d.toLocaleDateString('fr-FR') + ' ' +
+          d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+      }
+
+      const date = fmtTs(item.added_at);
 
       let expireHtml;
-      if (!item.expires_at) {
+      if (!item.expires_at || item.expires_at === 'null') {
         expireHtml = '<span style="color:var(--green);font-size:11px;font-family:\'IBM Plex Mono\',monospace;">Permanente</span>';
       } else {
-        const expDate = new Date(item.expires_at);
-        const isExpired = Date.now() > item.expires_at;
-        const expStr = expDate.toLocaleDateString('fr-FR') + ' ' +
-          expDate.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+        const expMs = typeof item.expires_at === 'string' ? parseInt(item.expires_at, 10) : Number(item.expires_at);
+        const isExpired = Date.now() > expMs;
+        const expStr = fmtTs(expMs);
         expireHtml = `<span style="color:${isExpired ? 'var(--red)' : 'var(--orange)'};font-size:11px;font-family:'IBM Plex Mono',monospace;">${isExpired ? '⚠ Expiré' : expStr}</span>`;
       }
 
