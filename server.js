@@ -42,13 +42,21 @@ async function initDB() {
 // ── Utilitaires ───────────────────────────────────────────────
 function now() { return Date.now(); }
 
+function normalizeIp(ip) {
+  if (!ip) return '0.0.0.0';
+  // Convertir les IPv6-mapped IPv4 (ex: ::ffff:88.173.62.149 → 88.173.62.149)
+  const mapped = ip.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  if (mapped) return mapped[1];
+  return ip;
+}
+
 function getClientIp(req) {
   // Support proxy (Railway, etc.)
   const forwarded = req.headers['x-forwarded-for'];
   if (forwarded) {
-    return forwarded.split(',')[0].trim();
+    return normalizeIp(forwarded.split(',')[0].trim());
   }
-  return req.socket?.remoteAddress || req.ip || '0.0.0.0';
+  return normalizeIp(req.socket?.remoteAddress || req.ip || '0.0.0.0');
 }
 
 // ── Middleware ────────────────────────────────────────────────
@@ -107,9 +115,11 @@ app.post('/api/ips', requireAdmin, async (req, res) => {
   const { ip, label, duration_hours } = req.body;
   if (!ip) return res.status(400).json({ error: 'IP manquante' });
 
-  // Validation basique du format IPv4/IPv6
+  // Validation et normalisation IPv4/IPv6
+  const ipNorm = normalizeIp(ip.trim());
   const ipv4Rx = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
-  if (!ipv4Rx.test(ip)) {
+  const ipv6Rx = /^[0-9a-fA-F:]+$/;
+  if (!ipv4Rx.test(ipNorm) && !ipv6Rx.test(ipNorm)) {
     return res.status(400).json({ error: 'Format IP invalide' });
   }
 
@@ -124,9 +134,9 @@ app.post('/api/ips', requireAdmin, async (req, res) => {
       `INSERT INTO ip_whitelist (ip, label, added_at, expires_at)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (ip) DO UPDATE SET label = EXCLUDED.label, expires_at = EXCLUDED.expires_at`,
-      [ip.trim(), label?.trim() || '', now(), expires_at]
+      [ipNorm, label?.trim() || '', now(), expires_at]
     );
-    res.json({ ok: true, ip, label, expires_at });
+    res.json({ ok: true, ip: ipNorm, label, expires_at });
   } catch (e) {
     console.error('Erreur POST /api/ips:', e);
     res.status(500).json({ error: 'Erreur serveur' });
