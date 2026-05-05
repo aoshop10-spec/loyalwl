@@ -173,9 +173,9 @@
       </div>
     </div>
     <div class="session-dot">● Connecté</div>
-    <div id="wlTimer" style="display:none; margin-top:6px; font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--text-3); align-items:center; gap:5px;">
-      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="8" cy="8" r="6"/><polyline points="8,5 8,8 10,10"/></svg>
-      <span id="wlTimerText">—</span>
+    <div id="wlExpiry" style="display:none; margin-top:5px; align-items:center; gap:5px;">
+      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; color:var(--text-3);"><circle cx="8" cy="8" r="6"/><polyline points="8,5 8,8 10,10"/></svg>
+      <span id="wlExpiryText" style="font-family:'IBM Plex Mono',monospace; font-size:10px;"></span>
     </div>
   </div>
 </aside>
@@ -296,38 +296,30 @@ Ctrl+Entrée pour analyser"></textarea>
     if (nameEl)   nameEl.textContent = data.label || 'Accès autorisé';
     if (avatarEl) avatarEl.textContent = (data.label || data.ip || '?').charAt(0).toUpperCase();
 
-    // ── Compteur WL ──────────────────────────────────────────
+    // ── Expiration WL (style panel admin) ────────────────────
     if (data.expires_at) {
-      const timerEl = document.getElementById('wlTimer');
-      const timerText = document.getElementById('wlTimerText');
-      if (timerEl) timerEl.style.display = 'flex';
+      const expiryEl   = document.getElementById('wlExpiry');
+      const expiryText = document.getElementById('wlExpiryText');
+      if (expiryEl) expiryEl.style.display = 'flex';
 
-      function updateWlTimer() {
-        const ms = Number(data.expires_at) - Date.now();
-        if (ms <= 0) {
-          timerText.textContent = 'Expiré';
-          timerText.style.color = '#f85149';
-          return;
-        }
-        const totalSec = Math.floor(ms / 1000);
-        const d = Math.floor(totalSec / 86400);
-        const h = Math.floor((totalSec % 86400) / 3600);
-        const m = Math.floor((totalSec % 3600) / 60);
-        const s = totalSec % 60;
+      const expMs = typeof data.expires_at === 'string'
+        ? parseInt(data.expires_at, 10)
+        : Number(data.expires_at);
 
-        let txt = '';
-        if (d > 0) txt = `${d}j ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-        else       txt = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-
-        timerText.textContent = txt;
-        // Passe en orange si < 1h, rouge si < 10min
-        if (ms < 600_000)       timerText.style.color = '#f85149';
-        else if (ms < 3_600_000) timerText.style.color = '#e3b341';
-        else                     timerText.style.color = 'var(--text-3)';
+      function fmtExpiry(ms) {
+        const d = new Date(ms);
+        return d.toLocaleDateString('fr-FR') + ' ' +
+          d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
       }
 
-      updateWlTimer();
-      setInterval(updateWlTimer, 1000);
+      function updateExpiry() {
+        const isExpired = Date.now() > expMs;
+        expiryText.textContent = isExpired ? '⚠ Expiré' : fmtExpiry(expMs);
+        expiryText.style.color = isExpired ? '#f85149' : '#d29922';
+      }
+
+      updateExpiry();
+      setInterval(updateExpiry, 10000); // re-check toutes les 10s
     }
 
     // Init app
