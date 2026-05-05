@@ -17,34 +17,6 @@
     .theme-pill:hover { border-color: var(--accent); color: var(--text); }
     .theme-pill.active { border-color: var(--accent); color: var(--text); background: var(--bg2); }
 
-    /* Page 403 */
-    #page-403 {
-      display: none; flex: 1; align-items: center; justify-content: center;
-      flex-direction: column; gap: 16px; padding: 2rem; text-align: center;
-    }
-    #page-403.show { display: flex; }
-    .err-403-code {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 72px; font-weight: 700;
-      color: var(--red, #f85149); line-height: 1;
-    }
-    .err-403-title { font-size: 18px; font-weight: 600; color: var(--text); }
-    .err-403-sub { font-size: 13px; color: var(--text-2); max-width: 360px; line-height: 1.6; }
-    .err-403-ip {
-      font-family: 'IBM Plex Mono', monospace; font-size: 12px;
-      color: var(--text-3); background: var(--bg3);
-      border: 1px solid var(--border); border-radius: 6px;
-      padding: 6px 14px; margin-top: 4px;
-    }
-    .err-403-tg {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 10px 20px; background: #2AABEE; color: white;
-      border-radius: 8px; font-size: 13px; font-weight: 600;
-      text-decoration: none; margin-top: 8px;
-      transition: background 0.15s;
-    }
-    .err-403-tg:hover { background: #1d96d4; }
-
     /* Loading overlay */
     #loadingOverlay {
       position: fixed; inset: 0; z-index: 9999;
@@ -100,7 +72,7 @@
   </div>
   <div class="sidebar-footer">
     <div class="user-info">
-      <div class="user-avatar" id="userAvatar">—</div>
+      <div class="user-avatar" id="userAvatar">?</div>
       <div>
         <div class="user-name" id="userName">Accès autorisé</div>
         <div class="user-mat" id="userIp">—</div>
@@ -128,18 +100,6 @@
   </div>
 
   <div class="chip-row" id="chipRow" style="display:none"></div>
-
-  <!-- PAGE 403 -->
-  <div id="page-403">
-    <div class="err-403-code">403</div>
-    <div class="err-403-title">Accès refusé</div>
-    <div class="err-403-sub">Votre adresse IP n'est pas autorisée à accéder à cette application. Contactez-nous sur Telegram pour obtenir un accès.</div>
-    <div class="err-403-ip" id="err403Ip">IP : —</div>
-    <a class="err-403-tg" href="https://t.me/freestylezoo" target="_blank">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-      @freestylezoo
-    </a>
-  </div>
 
   <!-- RECHERCHE -->
   <div id="page-search" class="page" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;gap:1.2rem;">
@@ -186,7 +146,7 @@ Ctrl+Entrée pour analyser"></textarea>
     <div id="recentHint" style="font-size:11px; color:var(--text-3);"></div>
   </div>
 
-  <!-- RÉSULTATS, CONTACT, SETTINGS, CLIENTS — contenu inchangé, chargé via app.js -->
+  <!-- RÉSULTATS, CONTACT, SETTINGS, CLIENTS -->
   <div id="page-results" class="page" style="display:none; flex:1; flex-direction:column; overflow:hidden;"></div>
   <div id="page-contact" class="page" style="display:none; flex:1; padding:2rem; overflow-y:auto;"></div>
   <div id="page-settings" class="page" style="display:none; flex:1; padding:2rem; overflow-y:auto;"></div>
@@ -199,52 +159,45 @@ Ctrl+Entrée pour analyser"></textarea>
 <script>
 // ── VÉRIFICATION IP AU CHARGEMENT ────────────────────────────
 (async function checkIpAccess() {
+  const overlay = document.getElementById('loadingOverlay');
+
+  function hideOverlay() {
+    overlay.classList.add('hide');
+    setTimeout(() => { overlay.style.display = 'none'; }, 350);
+  }
+
+  function blockAccess(ip) {
+    hideOverlay();
+    // Rediriger vers la page de refus
+    const url = 'login.html';
+    window.location.replace(url);
+  }
+
   try {
     const res = await fetch('/api/auth/check');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
 
-    // Masquer le loading
-    const overlay = document.getElementById('loadingOverlay');
-    overlay.classList.add('hide');
-    setTimeout(() => overlay.style.display = 'none', 350);
-
     if (!data.valid) {
-      // Accès refusé — afficher la page 403
-      document.getElementById('sidebar').style.display = 'none';
-      document.querySelector('.main').style.paddingLeft = '0';
-      const p403 = document.getElementById('page-403');
-      const ipEl = document.getElementById('err403Ip');
-      if (data.ip) ipEl.textContent = 'Votre IP : ' + data.ip;
-      p403.classList.add('show');
-      // Masquer les autres pages
-      document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
-      document.getElementById('page-403').style.display = 'flex';
+      blockAccess(data.ip);
       return;
     }
 
-    // Accès autorisé — mettre à jour les infos utilisateur
-    const ipEl = document.getElementById('userIp');
-    const nameEl = document.getElementById('userName');
+    // ✅ Accès autorisé — mettre à jour les infos utilisateur
+    hideOverlay();
+    const ipEl     = document.getElementById('userIp');
+    const nameEl   = document.getElementById('userName');
     const avatarEl = document.getElementById('userAvatar');
-    if (ipEl) ipEl.textContent = data.ip || '—';
-    if (data.label && nameEl) nameEl.textContent = data.label;
+    if (ipEl)     ipEl.textContent = data.ip || '—';
+    if (nameEl)   nameEl.textContent = data.label || 'Accès autorisé';
     if (avatarEl) avatarEl.textContent = (data.label || data.ip || '?').charAt(0).toUpperCase();
 
-    // Init app normalement
+    // Init app
     initApp();
 
   } catch (e) {
     console.error('Erreur de vérification IP:', e);
-    // En cas d'erreur réseau, bloquer l'accès par sécurité
-    const overlay = document.getElementById('loadingOverlay');
-    overlay.classList.add('hide');
-    setTimeout(() => overlay.style.display = 'none', 350);
-    document.getElementById('sidebar').style.display = 'none';
-    document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
-    const p403 = document.getElementById('page-403');
-    document.getElementById('err403Ip').textContent = 'Erreur de connexion au serveur';
-    p403.classList.add('show');
-    p403.style.display = 'flex';
+    blockAccess('');
   }
 })();
 
@@ -252,7 +205,8 @@ Ctrl+Entrée pour analyser"></textarea>
 function updateClock() {
   const now = new Date();
   const el = document.getElementById('clockDisplay');
-  if (el) el.textContent = [now.getHours(), now.getMinutes(), now.getSeconds()].map(n => n.toString().padStart(2,'0')).join(':');
+  if (el) el.textContent = [now.getHours(), now.getMinutes(), now.getSeconds()]
+    .map(n => String(n).padStart(2, '0')).join(':');
 }
 updateClock();
 setInterval(updateClock, 1000);
