@@ -75,22 +75,26 @@ function requireAdmin(req, res, next) {
 // ── API : Vérification IP (appelée par index.html au chargement) ──
 app.get('/api/auth/check', async (req, res) => {
   const ip = getClientIp(req);
+  // DEBUG
+  console.log('[DEBUG] ip detectee:', ip);
+  console.log('[DEBUG] x-forwarded-for:', req.headers['x-forwarded-for']);
+  console.log('[DEBUG] remoteAddress:', req.socket && req.socket.remoteAddress);
   try {
+    const allR = await pool.query('SELECT ip FROM ip_whitelist');
+    console.log('[DEBUG] IPs BDD:', allR.rows.map(r => r.ip));
     const { rows } = await pool.query(
       'SELECT ip, label, expires_at FROM ip_whitelist WHERE ip = $1',
       [ip]
     );
     if (rows.length > 0) {
       const row = rows[0];
-      // Vérifier l'expiration
       if (row.expires_at && Date.now() > row.expires_at) {
-        // Session expirée — supprimer l'entrée
         await pool.query('DELETE FROM ip_whitelist WHERE ip = $1', [ip]);
         return res.json({ valid: false, ip, reason: 'expired' });
       }
       return res.json({ valid: true, ip, label: row.label || ip });
     }
-    return res.json({ valid: false, ip });
+    return res.json({ valid: false, ip, debug_forwarded: req.headers['x-forwarded-for'], debug_remote: req.socket && req.socket.remoteAddress });
   } catch (e) {
     console.error('Erreur auth/check:', e);
     return res.status(500).json({ valid: false, ip, error: 'Erreur serveur' });
